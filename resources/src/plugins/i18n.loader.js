@@ -5,27 +5,22 @@ import axios from 'axios';
 Vue.use(VueI18n);
 
 export const loadI18n = async () => {
-  const userLang = localStorage.getItem('language') || 'en';
+  const userLang = 'en';
 
   let dbMessages = {};
   try {
-    const isBaseURLSet = axios.defaults.baseURL && axios.defaults.baseURL !== '/';
-    const endpoint = isBaseURLSet
-      ? `translations/${userLang}`      // baseURL will apply
-      : `/api/translations/${userLang}`; // full path for unauthenticated pages
-
-    const response = await axios.get(endpoint);
+    const response = await axios.get(`translations/en`);
     dbMessages = response.data;
   } catch (error) {
-    console.warn("⚠️ Failed to load DB translations. No fallback used.");
+    console.warn("⚠️ Failed to load translations.");
   }
 
   const messages = {
-    [userLang]: dbMessages || {}
+    en: dbMessages || {}
   };
 
   const i18n = new VueI18n({
-    locale: userLang,
+    locale: 'en',
     fallbackLocale: 'en',
     messages,
     silentTranslationWarn: true,

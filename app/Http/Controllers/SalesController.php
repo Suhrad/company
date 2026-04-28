@@ -162,6 +162,7 @@ class SalesController extends BaseController
             $item['cgst_amount'] = $Sale['cgst_amount'];
             $item['sgst_amount'] = $Sale['sgst_amount'];
             $item['igst_amount'] = $Sale['igst_amount'];
+            $item['total_quantity'] = $Sale->details()->sum('quantity');
 
             if (SaleReturn::where('sale_id', $Sale['id'])->where('deleted_at', '=', null)->exists()) {
                 $sellReturn = SaleReturn::where('sale_id', $Sale['id'])->where('deleted_at', '=', null)->first();

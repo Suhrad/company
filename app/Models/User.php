@@ -61,7 +61,9 @@ class User extends Authenticatable
         if (is_string($role)) {
             return $this->roles->contains('name', $role);
         }
-        return !!$role->intersect($this->roles)->count();
+        $user_role_ids = $this->roles->pluck('id')->toArray();
+        $required_role_ids = $role->pluck('id')->toArray();
+        return !!array_intersect($user_role_ids, $required_role_ids);
     }
 
     public function assignedWarehouses()

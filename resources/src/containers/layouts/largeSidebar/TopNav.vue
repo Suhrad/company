@@ -32,58 +32,15 @@
       </router-link>
 
       <router-link 
-        v-if="currentUserPermissions && currentUserPermissions.includes('Pos_view')"
+        v-if="currentUserPermissions && currentUserPermissions.includes('transfer_add')"
         class="btn btn-outline-info tn-sm btn-rounded"
-        to="/app/pos"
+        to="/app/transfers/store"
       >
-      <span class="ul-btn__text ml-1">POS</span>
+      <span class="ul-btn__text ml-1">Create Transfer</span>
       </router-link>
       <!-- Full screen toggle -->
       <i class="i-Full-Screen header-icon d-none d-sm-inline-block" @click="handleFullScreen"></i>
       <!-- Grid menu Dropdown -->
-
-      <div class="dropdown"        
-       v-if="show_language"
-      >
-        <b-dropdown
-          id="dropdown"
-          text="Dropdown Button"
-          class="m-md-2 d-none  d-md-block"
-          toggle-class="text-decoration-none"
-          no-caret
-          variant="link"
-        >
-          <template slot="button-content">
-            <i
-              class="i-Globe text-muted header-icon"
-              role="button"
-              id="dropdownMenuButton"
-              data-toggle="dropdown"
-              aria-haspopup="true"
-              aria-expanded="false"
-            ></i>
-          </template>
-          <vue-perfect-scrollbar
-            :settings="{ suppressScrollX: true, wheelPropagation: false }"
-            ref="myData"
-            class="dropdown-menu-right rtl-ps-none notification-dropdown ps scroll"
-          >
-            <div class="menu-icon-grid">
-
-               <a v-for="lang in getAvailableLanguages" :key="lang.locale" @click="SetLocal(lang.locale)">
-                  <img
-                    :src="`/flags/${lang.flag}`"
-                    :alt="lang.name"
-                    class="flag-icon flag-icon-squared"
-                    style="width: 20px; margin-right: 8px"
-                  />
-                  <span class="title-lang">{{ lang.name }}</span>
-                </a>
-             
-            </div>
-          </vue-perfect-scrollbar>
-        </b-dropdown>
-      </div>
 
       <!-- Notificaiton -->
       <div class="dropdown">
@@ -197,8 +154,6 @@ export default {
       "getSideBarToggleProperties",
       "currentUserPermissions",
       "notifs_alert",
-      "show_language",
-      "getAvailableLanguages"
     ]),
 
 

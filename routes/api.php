@@ -605,6 +605,7 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
 
     //------------------------------- Transfers --------------------------\\
     //--------------------------------------------------------------------\\
+    Route::post('transfers/complete_production', 'TransferController@complete_production');
     Route::resource('transfers', 'TransferController');
     Route::post('transfers/delete/by_selection', 'TransferController@delete_by_selection');
 

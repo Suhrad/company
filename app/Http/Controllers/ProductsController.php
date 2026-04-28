@@ -44,8 +44,8 @@ class ProductsController extends BaseController
         $pageStart = \Request::get('page', 1);
         // Start displaying items from this number;
         $offSet = ($pageStart * $perPage) - $perPage;
-        $order = $request->SortField;
-        $dir = $request->SortType;
+        $order = $request->SortField ?: 'id';
+        $dir = ($request->SortType == 'none' || !$request->SortType) ? 'desc' : $request->SortType;
         $helpers = new helpers();
         // Filter fields With Params to retrieve
         $columns = array(0 => 'name', 1 => 'category_id', 2 => 'brand_id', 3 => 'code');
@@ -1257,8 +1257,15 @@ class ProductsController extends BaseController
         $product_warehouse_data = product_warehouse::with('warehouse', 'product', 'productVariant')
 
         ->where(function ($query) use ($request , $id) {
-                return $query->where('warehouse_id', $id)
-                    ->where('deleted_at', '=', null)
+                if ($id != 0) {
+                    $query->where('warehouse_id', $id);
+                } else {
+                    $first_warehouse = \App\Models\Warehouse::whereNull('deleted_at')->first();
+                    if ($first_warehouse) {
+                        $query->where('warehouse_id', $first_warehouse->id);
+                    }
+                }
+                return $query->where('deleted_at', '=', null)
                     ->where(function ($query) use ($request) {
                         return $query->whereHas('product', function ($q) use ($request) {
                             if ($request->is_sale == '1') {

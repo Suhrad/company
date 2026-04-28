@@ -12,6 +12,7 @@ class Transfer extends Model
     protected $fillable = [
         'id', 'date','user_id', 'from_warehouse_id', 'to_warehouse_id','time',
         'items', 'statut', 'notes', 'GrandTotal', 'discount', 'shipping', 'TaxNet', 'tax_rate',
+        'is_production', 'wastage_total',
         'created_at', 'updated_at', 'deleted_at',
     ];
 
@@ -25,6 +26,8 @@ class Transfer extends Model
         'shipping' => 'double',
         'TaxNet' => 'double',
         'tax_rate' => 'double',
+        'is_production' => 'boolean',
+        'wastage_total' => 'double',
 
     ];
 

@@ -14,7 +14,7 @@ class Product extends Model
         'goods_or_service_flag', 'default_gst_rate', 'is_saral_imported', 'source_system',
         'source_identifier', 'matching_signature', 'cost', 'price', 'unit_id', 'unit_sale_id', 'unit_purchase_id',
         'stock_alert', 'category_id', 'sub_category_id', 'is_variant', 'is_imei',
-        'tax_method', 'image', 'brand_id', 'is_active', 'note', 'type',
+        'tax_method', 'image', 'brand_id', 'is_active', 'note', 'type', 'TaxNet',
         'warranty_period', 'warranty_unit', 'warranty_terms',
         'has_guarantee', 'guarantee_period', 'guarantee_unit', 'points', 'discount', 'discount_method', 'is_featured'
     ];

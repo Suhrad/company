@@ -75,6 +75,37 @@
                   </validation-provider>
                 </b-col>
 
+                <!-- Production Transfer Toggle -->
+                <b-col lg="4" md="4" sm="12" class="mb-3">
+                  <b-form-group label="Process Type">
+                    <b-form-checkbox v-model="transfer.is_production" name="check-button" switch size="lg">
+                      <b>{{ transfer.is_production ? 'Production (Multi-stage)' : 'Standard Transfer' }}</b>
+                    </b-form-checkbox>
+                  </b-form-group>
+                </b-col>
+
+                <!-- Status  -->
+                <b-col lg="4" md="4" sm="12" class="mb-3">
+                  <validation-provider name="Status" :rules="{ required: true}">
+                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Status') + ' ' + '*'">
+                      <v-select
+                        :class="{'is-invalid': !!errors.length}"
+                        :state="errors[0] ? false : (valid ? true : null)"
+                        v-model="transfer.statut"
+                        :reduce="label => label.value"
+                        :placeholder="$t('Choose_Status')"
+                        :options="
+                            [
+                              {label: 'Completed', value: 'completed'},
+                              {label: 'Sent', value: 'sent'},
+                              {label: 'Pending', value: 'pending'},
+                            ]"
+                      ></v-select>
+                      <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
+                    </b-form-group>
+                  </validation-provider>
+                </b-col>
+
                  <!-- Product -->
                  <b-col md="12" class="mb-5">
                   <h6>{{$t('ProductName')}}</h6>
@@ -104,13 +135,9 @@
                       <thead class="bg-gray-300">
                         <tr>
                           <th scope="col">#</th>
-                          <th scope="col">{{$t('ProductName')}}</th>
-                          <th scope="col">{{$t('Net_Unit_Cost')}}</th>
+                          <th scope="col">{{ transfer.is_production ? 'Input Goods' : $t('ProductName') }}</th>
                           <th scope="col">{{$t('CurrentStock')}}</th>
                           <th scope="col">{{$t('Qty')}}</th>
-                          <th scope="col">{{$t('Discount')}}</th>
-                          <th scope="col">{{$t('Tax')}}</th>
-                          <th scope="col">{{$t('SubTotal')}}</th>
                           <th scope="col" class="text-center">
                             <i class="fa fa-trash"></i>
                           </th>
@@ -118,7 +145,7 @@
                       </thead>
                       <tbody>
                         <tr v-if="details.length <=0">
-                          <td colspan="9">{{$t('NodataAvailable')}}</td>
+                          <td colspan="5">{{$t('NodataAvailable')}}</td>
                         </tr>
                         <tr v-for="detail in details">
                           <td>{{detail.detail_id}}</td>
@@ -126,40 +153,21 @@
                             <span>{{detail.code}}</span>
                             <br>
                             <span class="badge badge-success">{{detail.name}}</span>
-                            <i @click="Modal_Updat_Detail(detail)" class="i-Edit"></i>
                           </td>
-                          <td>{{currentUser.currency}} {{formatNumber(detail.Net_cost, 3)}}</td>
                           <td>
                             <span
                               class="badge badge-outline-warning"
                             >{{detail.stock}} {{detail.unitPurchase}}</span>
                           </td>
                           <td>
-                            <div class="quantity">
-                              <b-input-group>
-                                <b-input-group-prepend>
-                                  <span
-                                    class="btn btn-primary btn-sm"
-                                    @click="decrement(detail ,detail.detail_id)"
-                                  >-</span>
-                                </b-input-group-prepend>
-                                <input
-                                  class="form-control"
-                                  @keyup="Verified_Qty(detail,detail.detail_id)"
-                                  v-model.number="detail.quantity"
-                                >
-                                <b-input-group-append>
-                                  <span
-                                    class="btn btn-primary btn-sm"
-                                    @click="increment(detail ,detail.detail_id)"
-                                  >+</span>
-                                </b-input-group-append>
-                              </b-input-group>
-                            </div>
+                            <b-form-input
+                              v-model.number="detail.quantity"
+                              @keyup="Verified_Qty(detail,detail.detail_id)"
+                              type="number"
+                              class="form-control text-right"
+                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
+                            ></b-form-input>
                           </td>
-                          <td>{{currentUser.currency}} {{formatNumber(detail.DiscountNet * detail.quantity, 2)}}</td>
-                          <td>{{currentUser.currency}} {{formatNumber(detail.taxe * detail.quantity, 2)}}</td>
-                           <td>{{currentUser.currency}} {{detail.subtotal.toFixed(2)}}</td>
                           <td>
                             <a
                               @click="delete_Product_Detail(detail.detail_id)"
@@ -175,136 +183,18 @@
                   </div>
                 </b-col>
 
-                <div class="offset-md-9 col-md-3 mt-4">
-                  <table class="table table-striped table-sm">
-                    <tbody>
-                      <tr>
-                        <td class="bold">{{$t('OrderTax')}}</td>
-                        <td>
-                          <span>{{currentUser.currency}} {{transfer.TaxNet.toFixed(2)}} ({{formatNumber(transfer.tax_rate ,2)}} %)</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td class="bold">{{$t('Discount')}}</td>
-                        <td>{{currentUser.currency}} {{transfer.discount.toFixed(2)}}</td>
-                      </tr>
-                      <tr>
-                        <td class="bold">{{$t('Shipping')}}</td>
-                        <td>{{currentUser.currency}} {{transfer.shipping.toFixed(2)}}</td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <span class="font-weight-bold">{{$t('Total')}}</span>
-                        </td>
-                        <td>
-                          <span
-                            class="font-weight-bold"
-                          >{{currentUser.currency}} {{GrandTotal.toFixed(2)}}</span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
 
-                <!-- Order Tax  -->
-                <b-col lg="4" md="4" sm="12" class="mb-3">
-                  <validation-provider
-                    name="Order Tax"
-                    :rules="{ regex: /^\d*\.?\d*$/}"
-                    v-slot="validationContext"
-                  >
-                    <b-form-group :label="$t('OrderTax')">
-                      <b-input-group append="%">
-                        <b-form-input
-                          :state="getValidationState(validationContext)"
-                          aria-describedby="OrderTax-feedback"
-                          label="Order Tax"
-                          v-model.number="transfer.tax_rate"
-                          @keyup="keyup_OrderTax()"
-                        ></b-form-input>
-                      </b-input-group>
-                      <b-form-invalid-feedback
-                        id="OrderTax-feedback"
-                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
 
-                <!-- Discount -->
-                <b-col lg="4" md="4" sm="12" class="mb-3">
-                  <validation-provider
-                    name="Discount"
-                    :rules="{ regex: /^\d*\.?\d*$/}"
-                    v-slot="validationContext"
-                  >
-                    <b-form-group :label="$t('Discount')">
-                      <b-input-group :append="currentUser.currency">
-                        <b-form-input
-                          :state="getValidationState(validationContext)"
-                          aria-describedby="Discount-feedback"
-                          label="Discount"
-                          v-model.number="transfer.discount"
-                          @keyup="keyup_Discount()"
-                        ></b-form-input>
-                      </b-input-group>
-                      <b-form-invalid-feedback
-                        id="Discount-feedback"
-                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
 
-                <!-- Shipping  -->
-                <b-col lg="4" md="4" sm="12" class="mb-3">
-                  <validation-provider
-                    name="Shipping"
-                    :rules="{ regex: /^\d*\.?\d*$/}"
-                    v-slot="validationContext"
-                  >
-                    <b-form-group :label="$t('Shipping')">
-                      <b-input-group :append="currentUser.currency">
-                        <b-form-input
-                          :state="getValidationState(validationContext)"
-                          aria-describedby="Shipping-feedback"
-                          label="Shipping"
-                          v-model.number="transfer.shipping"
-                          @keyup="keyup_Shipping()"
-                        ></b-form-input>
-                      </b-input-group>
-                      <b-form-invalid-feedback
-                        id="Shipping-feedback"
-                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
-
-                 <!-- Status  -->
-                <b-col lg="4" md="4" sm="12" class="mb-3">
-                  <validation-provider name="Status" :rules="{ required: true}">
-                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Status') + ' ' + '*'">
-                      <v-select
-                        :class="{'is-invalid': !!errors.length}"
-                        :state="errors[0] ? false : (valid ? true : null)"
-                        v-model="transfer.statut"
-                        :reduce="label => label.value"
-                        :placeholder="$t('Choose_Status')"
-                        :options="
-                                [{label: 'Completed', value: 'completed'},
-                                {label: 'Sent', value: 'sent'},
-                                {label: 'Pending', value: 'pending'}
-                            ]"
-                      ></v-select>
-                      <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
 
                 <b-col md="12">
                   <b-form-group :label="$t('Note')">
                     <textarea
                       v-model="transfer.notes"
                       rows="4"
-                      class="form-control"
+                      ref="noteTextarea"
+                      @input="resizeTextarea"
+                      class="form-control auto-expand"
                       :placeholder="$t('Afewwords')"
                     ></textarea>
                   </b-form-group>
@@ -500,7 +390,8 @@ export default {
         tax_rate: 0,
         TaxNet: 0,
         shipping: 0,
-        discount: 0
+        discount: 0,
+        is_production: false
       },
       total: 0,
       GrandTotal: 0,
@@ -951,57 +842,19 @@ export default {
       for (var i = 0; i < this.details.length; i++) {
         if (this.details[i].detail_id === id) {
           if (isNaN(detail.quantity)) {
-            this.details[i].quantity = detail.stock;
+            this.details[i].quantity = 1;
           }
-
-          if (detail.quantity > detail.stock) {
-            this.makeToast("warning", this.$t("LowStock"), this.$t("Warning"));
-            this.details[i].quantity = detail.stock;
-          } else {
-            this.details[i].quantity = detail.quantity;
-          }
+          this.details[i].quantity = detail.quantity;
         }
       }
       this.Calcul_Total();
       this.$forceUpdate();
     },
 
-    //-----------------------------------increment QTY ------------------------------\\
-
-    increment(detail, id) {
-      for (var i = 0; i < this.details.length; i++) {
-        if (this.details[i].detail_id == id) {
-          if (detail.quantity + 1 > detail.stock) {
-            this.makeToast("warning", this.$t("LowStock"), this.$t("Warning"));
-          } else {
-            this.formatNumber(this.details[i].quantity++, 2);
-          }
-        }
-      }
-      this.Calcul_Total();
-      this.$forceUpdate();
-    },
-
-    //-----------------------------------decrement QTY ------------------------------\\
-
-    decrement(detail, id) {
-      for (var i = 0; i < this.details.length; i++) {
-        if (this.details[i].detail_id === id) {
-          if (detail.quantity - 1 >= 1) {
-            if (detail.quantity - 1 > detail.stock) {
-              this.makeToast(
-                "warning",
-                this.$t("LowStock"),
-                this.$t("Warning")
-              );
-            } else {
-              this.formatNumber(this.details[i].quantity--, 2);
-            }
-          }
-        }
-      }
-      this.Calcul_Total();
-      this.$forceUpdate();
+    resizeTextarea() {
+      const element = this.$refs.noteTextarea;
+      element.style.height = "auto";
+      element.style.height = element.scrollHeight + "px";
     },
 
     //------------------------------Formetted Numbers -------------------------\\
@@ -1087,6 +940,25 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+  .main-content, .main-content label, .main-content input, .main-content .v-select, .main-content .table, .main-content .badge {
+    font-size: 1.1rem !important;
+  }
+  .main-content h5, .main-content h6 {
+    font-size: 1.3rem !important;
+  }
+  .main-content .form-control {
+    height: calc(1.5em + 1.1rem + 2px) !important;
+    font-size: 1.1rem !important;
+  }
+  .auto-expand {
+    height: auto !important;
+    min-height: 100px !important;
+    overflow-y: hidden !important;
+    resize: none !important;
+  }
+</style>
 
 <style>
 

@@ -43,8 +43,8 @@
           </b-button>
            <vue-excel-xlsx
               class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="transfers"
-              :columns="columns"
+              :data="transfersWithTotal"
+              :columns="excelColumns"
               :file-name="'transfers'"
               :file-type="'xlsx'"
               :sheet-name="'transfers'"
@@ -66,13 +66,24 @@
         <template slot="table-row" slot-scope="props">
           <span v-if="props.column.field == 'actions'">
 
-            <a title="PDF" v-b-tooltip.hover @click="download_transfer_pdf(props.row , props.row.id)">
+            <a title="PDF" v-b-tooltip.hover @click="Single_Transfer_PDF(props.row)">
               <i class="i-File-TXT text-25 text-primary cursor-pointer"></i>
             </a>
 
             <a title="View" v-b-tooltip.hover @click="showDetails(props.row.id)">
               <i class="i-Eye text-25 text-info cursor-pointer"></i>
             </a>
+
+            <b-button 
+              v-if="props.row.is_production && props.row.statut == 'sent'"
+              size="sm" 
+              variant="primary" 
+              @click="openCompleteModal(props.row)"
+              class="mx-2 mb-1"
+            >
+              Complete
+            </b-button>
+
             <router-link
               v-if="currentUserPermissions && currentUserPermissions.includes('transfer_edit')"
               title="Edit"
@@ -90,17 +101,11 @@
               <i class="i-Close-Window text-25 text-danger"></i>
             </a>
           </span>
-          <div v-else-if="props.column.field == 'statut'">
-            <span
-              v-if="props.row.statut == 'completed'"
-              class="badge badge-outline-success"
-            >{{$t('complete')}}</span>
-            <span
-              v-else-if="props.row.statut == 'sent'"
-              class="badge badge-outline-warning"
-            >{{$t('Sent')}}</span>
-            <span v-else class="badge badge-outline-danger">{{$t('Pending')}}</span>
-          </div>
+          <span v-else-if="props.column.field == 'statut'">
+            <b-badge :variant="props.row.is_production && props.row.statut == 'sent' ? 'warning' : 'success'">
+              {{ props.row.is_production && props.row.statut == 'sent' ? 'In-Production' : props.row.statut }}
+            </b-badge>
+          </span>
         </template>
       </vue-good-table>
     </div>
@@ -140,22 +145,7 @@
             </b-form-group>
           </b-col>
 
-          <!-- Status  -->
-          <b-col md="12">
-            <b-form-group :label="$t('Status')">
-              <v-select
-                v-model="Filter_status"
-                :reduce="label => label.value"
-                :placeholder="$t('Choose_Status')"
-                :options="
-                      [
-                        {label: 'Completed', value: 'completed'},
-                        {label: 'Sent', value: 'sent'},
-                        {label: 'Pending', value: 'pending'},
-                      ]"
-              ></v-select>
-            </b-form-group>
-          </b-col>
+
 
           <b-col md="6" sm="12">
             <b-button
@@ -204,38 +194,19 @@
                 <td>{{$t('ToWarehouse')}}</td>
                 <th>{{transfer.to_warehouse}}</th>
               </tr>
-              <!-- Grand Total -->
-              <tr>
-                <td>{{$t('Total')}}</td>
-                <th>{{currentUser.currency}}{{formatNumber(transfer.GrandTotal ,2)}}</th>
-              </tr>
-              <!-- Status -->
-              <tr>
-                <td>{{$t('Status')}}</td>
-                <th>
-                  <span
-                    v-if="transfer.statut == 'completed'"
-                    class="badge badge-outline-success"
-                  >{{$t('complete')}}</span>
-                  <span
-                    v-else-if="transfer.statut == 'sent'"
-                    class="badge badge-outline-warning"
-                  >{{$t('Sent')}}</span>
-                  <span v-else class="badge badge-outline-danger">{{$t('Pending')}}</span>
-                </th>
-              </tr>
+
             </tbody>
           </table>
         </b-col>
         <b-col lg="7" md="12" sm="12" class="mt-3">
           <div class="table-responsive">
-            <table class="table table-hover table-bordered table-sm">
+            <!-- For standard transfers -->
+            <table v-if="!transfer.is_production" class="table table-hover table-bordered table-sm">
               <thead>
                 <tr>
                   <th scope="col">{{$t('ProductName')}}</th>
                   <th scope="col">{{$t('CodeProduct')}}</th>
                   <th scope="col">{{$t('Quantity')}}</th>
-                  <th scope="col">{{$t('SubTotal')}}</th>
                 </tr>
               </thead>
               <tbody>
@@ -243,10 +214,51 @@
                   <td>{{detail.name}}</td>
                   <td>{{detail.code}}</td>
                   <td>{{formatNumber(detail.quantity ,2)}} {{detail.unit}}</td>
-                  <td>{{currentUser.currency}} {{detail.total.toFixed(2)}}</td>
                 </tr>
               </tbody>
             </table>
+
+            <!-- For production transfers -->
+            <div v-else>
+               <h6 class="text-primary"><b>Inputs (Raw Materials)</b></h6>
+               <table class="table table-hover table-bordered table-sm mb-4">
+                  <thead>
+                    <tr>
+                      <th scope="col">{{$t('ProductName')}}</th>
+                      <th scope="col" class="text-right">{{$t('Quantity')}}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="detail in details.filter(d => d.flow_type == 'input')">
+                      <td>{{detail.name}} ({{detail.code}})</td>
+                      <td class="text-right">{{formatNumber(detail.quantity ,2)}} {{detail.unit}}</td>
+                    </tr>
+                  </tbody>
+               </table>
+
+               <h6 class="text-success"><b>Outputs (Finished Goods)</b></h6>
+               <table class="table table-hover table-bordered table-sm">
+                  <thead>
+                    <tr>
+                      <th scope="col">{{$t('ProductName')}}</th>
+                      <th scope="col" class="text-right">{{$t('Quantity')}}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="detail in details.filter(d => d.flow_type == 'output')">
+                      <td>{{detail.name}} ({{detail.code}})</td>
+                      <td class="text-right">{{formatNumber(detail.quantity ,2)}} {{detail.unit}}</td>
+                    </tr>
+                    <tr v-if="details.filter(d => d.flow_type == 'output').length == 0">
+                       <td colspan="2" class="text-center italic">Still In-Process...</td>
+                    </tr>
+                  </tbody>
+               </table>
+
+               <div v-if="transfer.statut == 'completed'" class="alert alert-info mt-2">
+                  <b>Total Wastage: {{ transfer.wastage_total }} kg</b>
+               </div>
+            </div>
           </div>
         </b-col>
       </b-row>
@@ -256,6 +268,71 @@
              <p>{{transfer.note}}</p>
            </b-col>
         </b-row>
+    </b-modal>
+    </b-modal>
+
+    <!-- Complete Production Modal -->
+    <b-modal id="modal_complete_production" size="lg" title="Complete Production" hide-footer>
+      <b-form @submit.prevent="Submit_Complete_Production">
+        <b-row>
+          <b-col md="12" class="mb-3">
+             <h5>Producing in: <b>{{ selected_transfer.to_warehouse }}</b></h5>
+             <p class="text-muted">Enter the finished goods produced from the raw material.</p>
+          </b-col>
+          
+          <b-col md="12" class="mb-4">
+            <div id="autocomplete" class="autocomplete">
+                <input 
+                  placeholder="Scan/Search Finished Product..."
+                  v-model="search_input_modal"
+                  @keyup="searchModal(search_input_modal)"
+                  class="autocomplete-input" />
+                <ul class="autocomplete-result-list" v-show="search_input_modal.length > 1 && product_filter_modal.length > 0">
+                  <li class="autocomplete-result" v-for="product_fil in product_filter_modal" @mousedown="SearchProductModal(product_fil)">
+                    {{ product_fil.code }} ({{ product_fil.name }})
+                  </li>
+                </ul>
+            </div>
+          </b-col>
+
+          <b-col md="12">
+            <table class="table table-hover table-sm">
+              <thead class="bg-gray-300">
+                <tr>
+                  <th>Product</th>
+                  <th class="text-right">Quantity Produced</th>
+                  <th class="text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, index) in production_outputs" :key="index">
+                  <td>
+                     <b>{{ item.code }}</b><br>
+                     <small>{{ item.name }}</small>
+                  </td>
+                  <td>
+                    <b-form-input v-model.number="item.quantity" type="number" class="text-right font-weight-bold" style="font-size: 1.2rem; height: 50px;"></b-form-input>
+                  </td>
+                  <td class="text-center">
+                    <b-button variant="outline-danger" size="sm" @click="production_outputs.splice(index, 1)">
+                       <i class="i-Close-Window"></i>
+                    </b-button>
+                  </td>
+                </tr>
+                <tr v-if="production_outputs.length == 0">
+                  <td colspan="3" class="text-center py-4">Search and add the products being produced.</td>
+                </tr>
+              </tbody>
+            </table>
+          </b-col>
+
+          <b-col md="12" class="mt-3">
+            <b-button variant="primary" block size="lg" type="submit" :disabled="production_outputs.length == 0 || SubmitProcessing">
+              <i class="i-Yes me-2"></i> Finish Production & Update Stock
+            </b-button>
+          </b-col>
+        </b-row>
+      </b-form>
     </b-modal>
   </div>
 </template>
@@ -297,11 +374,50 @@ export default {
       transfers: [],
       transfer: {
         GrandTotal: ""
-      }
+      },
+      selected_transfer: {},
+      production_outputs: [],
+      search_input_modal: '',
+      product_filter_modal: [],
+      all_products: [],
+      SubmitProcessing: false,
     };
   },
   computed: {
     ...mapGetters(["currentUserPermissions", "currentUser"]),
+    excelColumns() {
+      return [
+        { label: this.$t("date"), field: "date" },
+        { label: this.$t("FromWarehouse"), field: "from_warehouse" },
+        { label: "Note", field: "notes" },
+        { label: this.$t("ToWarehouse"), field: "to_warehouse" },
+        { label: this.$t("Products"), field: "products_name" },
+        { label: this.$t("Quantity"), field: "products_quantity" },
+        { label: "Wastage", field: "wastage_total" },
+      ];
+    },
+    transfersWithTotal() {
+      if (!this.transfers.length) return [];
+      let totalQty = 0;
+      let totalWaste = 0;
+      this.transfers.forEach(t => {
+        if (t.is_production) {
+          totalQty += parseFloat(t.total_output || 0);
+        } else {
+          totalQty += parseFloat(t.all_qtys_sum || 0);
+        }
+        totalWaste += parseFloat(t.wastage_total || 0);
+      });
+      return [...this.transfers, {
+        date: '',
+        from_warehouse: 'TOTAL',
+        notes: '',
+        to_warehouse: '',
+        products_name: '',
+        products_quantity: totalQty.toFixed(2),
+        wastage_total: totalWaste.toFixed(2)
+      }];
+    },
     columns() {
       return [
         {
@@ -336,16 +452,15 @@ export default {
           thClass: "text-left"
         },
         {
-          label: this.$t("Total"),
-          field: "GrandTotal",
-          type: "decimal",
+          label: "Wastage",
+          field: "wastage_total",
           tdClass: "text-left",
           thClass: "text-left"
         },
+
         {
           label: this.$t("Status"),
           field: "statut",
-          html: true,
           tdClass: "text-left",
           thClass: "text-left"
         },
@@ -512,8 +627,13 @@ export default {
         )
         .then(response => {
           this.transfers = response.data.transfers;
-          this.warehouses = response.data.warehouses;
           this.totalRows = response.data.totalRows;
+          this.warehouses = response.data.warehouses;
+          
+          // Also fetch all products for the production modal if not already fetched
+          if (this.all_products.length === 0) {
+             this.Get_All_Products();
+          }
 
           // Complete the animation of theprogress bar.
           NProgress.done();
@@ -526,6 +646,69 @@ export default {
             this.isLoading = false;
           }, 500);
         });
+    },
+
+    Get_All_Products() {
+       axios.get("get_Products_by_warehouse/0?stock=0&product_service=0&product_combo=1")
+       .then(response => {
+          this.all_products = response.data;
+       });
+    },
+
+    openCompleteModal(transfer) {
+       this.selected_transfer = transfer;
+       this.production_outputs = [];
+       this.search_input_modal = '';
+       this.$bvModal.show("modal_complete_production");
+    },
+
+    searchModal(val) {
+       if (val.length < 2) {
+          this.product_filter_modal = [];
+          return;
+       }
+       this.product_filter_modal = this.all_products.filter(p => 
+          p.name.toLowerCase().includes(val.toLowerCase()) || 
+          p.code.toLowerCase().includes(val.toLowerCase())
+       ).slice(0, 10);
+    },
+
+    SearchProductModal(product) {
+       if (this.production_outputs.some(p => p.id === product.id)) {
+          this.makeToast("warning", "Product already added", "Warning");
+       } else {
+          this.production_outputs.push({
+             id: product.id,
+             product_id: product.id,
+             name: product.name,
+             code: product.code,
+             quantity: 1,
+             product_variant_id: product.product_variant_id
+          });
+       }
+       this.search_input_modal = '';
+       this.product_filter_modal = [];
+    },
+
+    Submit_Complete_Production() {
+       this.SubmitProcessing = true;
+       NProgress.start();
+       axios.post("transfers/complete_production", {
+          transfer_id: this.selected_transfer.id,
+          outputs: this.production_outputs
+       })
+       .then(response => {
+          this.SubmitProcessing = false;
+          NProgress.done();
+          this.$bvModal.hide("modal_complete_production");
+          this.makeToast("success", "Production completed and stock updated", "Success");
+          this.Get_Transfers(this.serverParams.page);
+       })
+       .catch(error => {
+          this.SubmitProcessing = false;
+          NProgress.done();
+          this.makeToast("danger", "Failed to complete production", "Error");
+       });
     },
 
     //----------------------------------- Get Details Transfer ------------------------------\\
@@ -545,62 +728,185 @@ export default {
         });
     },
 
-    //-------------------------------------- Transfer PDF ------------------------------\\
-    Transfer_PDF() {
+    //-------------------------------------- Single Transfer PDF ------------------------------\\
+    Single_Transfer_PDF(transfer) {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
 
       const fontPath = "/fonts/Vazirmatn-Bold.ttf";
       pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
       pdf.setFont("VazirmatnBold"); 
 
       let columns = [
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("FromWarehouse"), dataKey: "from_warehouse" },
+        { title: "Sr.No", dataKey: "sr_no" },
+        { title: self.$t("date"), dataKey: "date" },
+        { title: self.$t("FromWarehouse"), dataKey: "from_warehouse_details" },
         { title: self.$t("ToWarehouse"), dataKey: "to_warehouse" },
-        { title: self.$t("Items"), dataKey: "items" },
-        { title: self.$t("Status"), dataKey: "statut" },
-        { title: self.$t("Total"), dataKey: "GrandTotal" }
+        { title: self.$t("Products"), dataKey: "products_name" },
+        { title: self.$t("Quantity"), dataKey: "products_quantity" },
+        { title: "Wastage", dataKey: "wastage_total" },
       ];
 
-       // Calculate totals
-       let totalGrandTotal = self.transfers.reduce((sum, transfer) => sum + parseFloat(transfer.GrandTotal || 0), 0);
-     
-      let footer = [{
-        Ref: self.$t("Total"),
-        from_warehouse: '',
-        to_warehouse: '',
-        items: '',
-        statut: '',
-        GrandTotal: `${totalGrandTotal.toFixed(2)}`,
-       
+      let formatted_transfer = [{
+          sr_no: 1,
+          date: transfer.date,
+          from_warehouse_details: `${transfer.from_warehouse}${transfer.notes ? '\nNote: ' + transfer.notes : ''}`,
+          to_warehouse: transfer.to_warehouse,
+          products_name: transfer.products_name,
+          products_quantity: transfer.products_quantity,
+          wastage_total: transfer.wastage_total,
       }];
 
+      let totalQty = 0;
+      if (transfer.is_production) {
+         totalQty = parseFloat(transfer.total_output || 0);
+      } else {
+         totalQty = parseFloat(transfer.all_qtys_sum || 0);
+      }
+
+      let footer = [{
+        sr_no: '',
+        date: '',
+        from_warehouse_details: '',
+        to_warehouse: 'Total .....',
+        products_name: '',
+        products_quantity: totalQty.toFixed(2),
+        wastage_total: transfer.wastage_total,
+      }];
 
       pdf.autoTable({
         columns: columns,
-        body: self.transfers,
+        body: formatted_transfer,
         foot: footer,
-        startY: 70,
+        startY: 80,
         theme: "grid", 
-        didDrawPage: (data) => {
-          pdf.setFont("VazirmatnBold");
-          pdf.setFontSize(18);
-          pdf.text("Transfer List", 40, 25);   
-        },
         styles: {
           font: "VazirmatnBold", 
-          halign: "center", // 
+          fontSize: 9,
+          halign: "center",
+        },
+        columnStyles: {
+          from_warehouse_details: { halign: 'left' },
+          to_warehouse: { halign: 'right' },
+          products_name: { halign: 'center' },
+          products_quantity: { halign: 'right' },
+        },
+        didDrawPage: (data) => {
+          pdf.setFont("VazirmatnBold");
+          pdf.setFontSize(16);
+          pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
+          pdf.setFontSize(14);
+          pdf.text("Transfer Detail", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
         },
         headStyles: {
-          fillColor: [200, 200, 200], 
+          fillColor: [242, 242, 242], 
           textColor: [0, 0, 0], 
           fontStyle: "bold", 
+          lineWidth: 0.5,
+          lineColor: [0, 0, 0],
         },
         footStyles: {
-          fillColor: [230, 230, 230], 
+          fillColor: [242, 242, 242], 
           textColor: [0, 0, 0], 
           fontStyle: "bold", 
+          lineWidth: 0.5,
+          lineColor: [0, 0, 0],
+        },
+      });
+
+      pdf.save(`Transfer_${transfer.Ref}.pdf`);
+    },
+
+    //-------------------------------------- Transfer PDF (List) ------------------------------\\
+    Transfer_PDF() {
+      var self = this;
+      let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
+
+      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+      pdf.setFont("VazirmatnBold"); 
+
+      let columns = [
+        { title: "Sr.No", dataKey: "sr_no" },
+        { title: self.$t("date"), dataKey: "date" },
+        { title: self.$t("FromWarehouse"), dataKey: "from_warehouse_details" },
+        { title: self.$t("ToWarehouse"), dataKey: "to_warehouse" },
+        { title: self.$t("Products"), dataKey: "products_name" },
+        { title: self.$t("Quantity"), dataKey: "products_quantity" },
+        { title: "Wastage", dataKey: "wastage_total" },
+      ];
+
+      // Sort transfers chronologically (oldest first - first created comes first)
+      let sortedTransfers = [...self.transfers].sort((a, b) => a.id - b.id);
+
+      let totalQty = 0;
+      let totalWaste = 0;
+      let formatted_transfers = sortedTransfers.map((transfer, index) => {
+        if (transfer.is_production) {
+           totalQty += parseFloat(transfer.total_output || 0);
+        } else {
+           totalQty += parseFloat(transfer.all_qtys_sum || 0);
+        }
+        totalWaste += parseFloat(transfer.wastage_total || 0);
+
+        return {
+          sr_no: index + 1,
+          date: transfer.date,
+          from_warehouse_details: `${transfer.from_warehouse}${transfer.notes ? '\nNote: ' + transfer.notes : ''}`,
+          to_warehouse: transfer.to_warehouse,
+          products_name: transfer.products_name,
+          products_quantity: transfer.products_quantity,
+          wastage_total: transfer.wastage_total,
+        };
+      });
+
+      let footer = [{
+        sr_no: '',
+        date: '',
+        from_warehouse_details: '',
+        to_warehouse: 'Total .....',
+        products_name: '',
+        products_quantity: totalQty.toFixed(2),
+        wastage_total: totalWaste.toFixed(2),
+      }];
+
+      pdf.autoTable({
+        columns: columns,
+        body: formatted_transfers,
+        foot: footer,
+        startY: 80,
+        theme: "grid", 
+        styles: {
+          font: "VazirmatnBold", 
+          fontSize: 9,
+          halign: "center",
+        },
+        columnStyles: {
+          from_warehouse_details: { halign: 'left' },
+          to_warehouse: { halign: 'right' },
+          products_name: { halign: 'center' },
+          products_quantity: { halign: 'right' },
+        },
+        didDrawPage: (data) => {
+          pdf.setFont("VazirmatnBold");
+          pdf.setFontSize(16);
+          pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
+          pdf.setFontSize(14);
+          pdf.text("Transfer List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
+        },
+        headStyles: {
+          fillColor: [242, 242, 242], 
+          textColor: [0, 0, 0], 
+          fontStyle: "bold", 
+          lineWidth: 0.5,
+          lineColor: [0, 0, 0],
+        },
+        footStyles: {
+          fillColor: [242, 242, 242], 
+          textColor: [0, 0, 0], 
+          fontStyle: "bold", 
+          lineWidth: 0.5,
+          lineColor: [0, 0, 0],
         },
       });
 

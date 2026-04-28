@@ -69,11 +69,8 @@
                <thead>
                   <tr>
                      <th>PRODUCT</th>
-                     <th>UNIT PRICE</th>
                      <th>QUANTITY</th>
-                     <th>DISCOUNT</th>
-                     <th>TAX</th>
-                     <th>TOTAL</th>
+                     <th>AMOUNT</th>
                   </tr>
                </thead>
                <tbody>
@@ -82,13 +79,10 @@
                      <td>
                         <span>{{$detail['code']}} ({{$detail['name']}})</span>
                            @if($detail['is_imei'] && $detail['imei_number'] !==null)
-                              <p>IMEI/SN : {{$detail['imei_number']}}</p>
+                               <p>IMEI/SN : {{$detail['imei_number']}}</p>
                            @endif
                      </td>
-                     <td>{{$detail['price']}} </td>
-                     <td>{{$detail['quantity']}}/{{$detail['unitSale']}}</td>
-                     <td>{{$detail['DiscountNet']}} </td>
-                     <td>{{$detail['taxe']}} </td>
+                     <td>{{$detail['quantity']}} {{$detail['unitSale']}}</td>
                      <td>{{$detail['total']}} </td>
                   </tr>
                   @endforeach

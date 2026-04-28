@@ -249,7 +249,7 @@ export default {
         { label: this.$t('to'),   field:'to',         sortable:true },
         { label: this.$t('Qty'),  field:'qty',        type:'number', sortable:true },
         { label: this.$t('Value'),field:'value',      type:'number', sortable:true },
-        { label: this.$t('Status'),field:'statut',    sortable:true },
+
       ];
     },
     // Charts
@@ -462,8 +462,7 @@ export default {
           this.$t('From'),
           this.$t('to'),
           this.$t('Qty'),
-          this.$t('Value'),
-          this.$t('Status')
+          this.$t('Value')
         ]];
 
         const body = (allRows || []).map(r => ([
@@ -472,8 +471,7 @@ export default {
           r.from,
           r.to,
           this.formatQty(r.qty),
-          this.money(r.value),
-          r.statut
+          this.money(r.value)
         ]));
 
         autoTable(doc, {

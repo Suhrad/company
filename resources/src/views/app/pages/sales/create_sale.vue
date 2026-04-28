@@ -6,7 +6,7 @@
     <validation-observer ref="create_sale" v-if="!isLoading">
       <b-form @submit.prevent="Submit_Sale">
         <b-row>
-          <b-col lg="8" md="12" sm="12">
+          <b-col lg="12" md="12" sm="12">
             <b-card>
               <b-row>
 
@@ -102,6 +102,8 @@
                   </b-form-group>
                 </b-col>
 
+
+
                    <!-- Product Search -->
                 <b-col md="12" class="mb-2">
                     <div class="input-with-icon">
@@ -130,7 +132,8 @@
                         <tr>
                           <th scope="col">#</th>
                           <th scope="col">{{$t('ProductName')}}</th>
-                          <th scope="col">{{$t('Amount')}}</th>
+                          <th scope="col" style="width: 250px;">{{$t('Qty')}}</th>
+                          <th scope="col" style="width: 250px;">{{$t('Amount')}}</th>
                           <th scope="col" class="text-center">
                             <i class="i-Close-Window text-25"></i>
                           </th>
@@ -144,10 +147,20 @@
                           </td>
                           <td>
                             <b-form-input
+                              v-model.number="detail.quantity"
+                              @keyup="Verified_Qty(detail,detail.detail_id)"
+                              type="number"
+                              class="form-control text-center"
+                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
+                            ></b-form-input>
+                          </td>
+                          <td>
+                            <b-form-input
                               v-model.number="detail.subtotal"
                               @keyup="Manual_Amount_Update(detail)"
                               type="number"
                               class="form-control text-right"
+                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
                             ></b-form-input>
                           </td>
                           <td class="text-center">
@@ -163,20 +176,6 @@
                   <table class="table table-striped table-sm">
                     <tbody>
                       <tr>
-                        <td class="bold">{{$t('OrderTax')}}</td>
-                        <td>
-                          <span>{{currentUser.currency}} {{sale.TaxNet.toFixed(2)}} ({{formatNumber(sale.tax_rate,2)}} %)</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td class="bold">{{$t('Discount')}}</td>
-                        <td>{{currentUser.currency}} {{sale.discount.toFixed(2)}}</td>
-                      </tr>
-                      <tr>
-                        <td class="bold">{{$t('Shipping')}}</td>
-                        <td>{{currentUser.currency}} {{sale.shipping.toFixed(2)}}</td>
-                      </tr>
-                      <tr>
                         <td>
                           <span class="font-weight-bold">{{$t('Total')}}</span>
                         </td>
@@ -190,148 +189,6 @@
                   </table>
                 </div>
 
-                <!-- Order Tax  -->
-                <b-col lg="4" md="4" sm="12" class="mb-3" v-if="currentUserPermissions && currentUserPermissions.includes('edit_tax_discount_shipping_sale')">
-                  <validation-provider
-                    name="Order Tax"
-                    :rules="{ regex: /^\d*\.?\d*$/}"
-                    v-slot="validationContext"
-                  >
-                    <b-form-group :label="$t('OrderTax')">
-                      <b-input-group append="%">
-                        <b-form-input
-                          :state="getValidationState(validationContext)"
-                          aria-describedby="OrderTax-feedback"
-                          label="Order Tax"
-                          v-model.number="sale.tax_rate"
-                          @keyup="keyup_OrderTax()"
-                        ></b-form-input>
-                      </b-input-group>
-                      <b-form-invalid-feedback
-                        id="OrderTax-feedback"
-                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
-
-                <!-- Discount -->
-                <b-col lg="4" md="4" sm="12" class="mb-3" v-if="currentUserPermissions && currentUserPermissions.includes('edit_tax_discount_shipping_sale')">
-                  <validation-provider
-                    name="Discount"
-                    :rules="{ regex: /^\d*\.?\d*$/}"
-                    v-slot="validationContext"
-                  >
-                    <b-form-group :label="$t('Discount')">
-                      <b-input-group :append="currentUser.currency">
-                        <b-form-input
-                          :state="getValidationState(validationContext)"
-                          aria-describedby="Discount-feedback"
-                          label="Discount"
-                          v-model.number="sale.discount"
-                          @keyup="keyup_Discount()"
-                        ></b-form-input>
-                      </b-input-group>
-                      <b-form-invalid-feedback
-                        id="Discount-feedback"
-                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
-
-                <b-col lg="4" md="4" sm="12" class="mb-3" v-if="clientIsEligible && currentUserPermissions && currentUserPermissions.includes('edit_tax_discount_shipping_sale')">
-                        <label>Client Points</label>
-                        <b-input-group class="mb-2">
-                          <b-form-input
-                            :value="selectedClientPoints"
-                            disabled
-                          ></b-form-input>
-
-                          <b-input-group-append>
-                            <b-button
-                              :variant="pointsConverted ? 'secondary' : 'success'"
-                              @click="convertPointsToDiscount"
-                              :disabled="selectedClientPoints === 0"
-                            >
-                              {{ pointsConverted ? '✅' : 'Convert' }}
-                            </b-button>
-                          </b-input-group-append>
-                        </b-input-group>
-
-                        <small v-if="discount_from_points > 0" class="text-success">
-                          ✅ Discount of {{ discount_from_points }} {{ currentUser.currency }} will be applied
-                        </small>
-
-                        <!-- Hidden input to submit the discount -->
-                        <input type="hidden" name="discount_from_points" :value="discount_from_points">
-                </b-col>
-
-                <!-- Shipping  -->
-                <b-col lg="4" md="4" sm="12" class="mb-3" v-if="currentUserPermissions && currentUserPermissions.includes('edit_tax_discount_shipping_sale')">
-                  <validation-provider
-                    name="Shipping"
-                    :rules="{ regex: /^\d*\.?\d*$/}"
-                    v-slot="validationContext"
-                  >
-                    <b-form-group :label="$t('Shipping')">
-                      <b-input-group :append="currentUser.currency">
-                        <b-form-input
-                          :state="getValidationState(validationContext)"
-                          aria-describedby="Shipping-feedback"
-                          label="Shipping"
-                          v-model.number="sale.shipping"
-                          @keyup="keyup_Shipping()"
-                        ></b-form-input>
-                      </b-input-group>
-
-                      <b-form-invalid-feedback
-                        id="Shipping-feedback"
-                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
-
-                <!-- Status  -->
-                <b-col lg="4" md="4" sm="12" class="mb-3">
-                  <validation-provider name="Status" :rules="{ required: true}">
-                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Status') + ' ' + '*'">
-                      <v-select
-                        @input="Selected_Status"
-                        :class="{'is-invalid': !!errors.length}"
-                        :state="errors[0] ? false : (valid ? true : null)"
-                        v-model="sale.statut"
-                        :reduce="label => label.value"
-                        :placeholder="$t('Choose_Status')"
-                        :options="
-                                [
-                                  {label: 'completed', value: 'completed'},
-                                  {label: 'Pending', value: 'pending'},
-                                  {label: 'ordered', value: 'ordered'}
-                                ]"
-                      ></v-select>
-                      <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
-
-                <!-- PaymentStatus  -->
-                <b-col md="4" v-if="sale.statut == 'completed'">
-                  <validation-provider name="PaymentStatus">
-                    <b-form-group :label="$t('PaymentStatus')">
-                      <v-select
-                        @input="Selected_PaymentStatus"
-                        :reduce="label => label.value"
-                        v-model="payment.status"
-                        :placeholder="$t('Choose_Status')"
-                        :options="
-                                [
-                                  {label: 'Paid', value: 'paid'},
-                                  {label: 'partial', value: 'partial'},
-                                  {label: 'Pending', value: 'pending'},
-                                ]"
-                      ></v-select>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
 
                 <!-- Payment choice -->
                 <b-col md="4" v-if="payment.status != 'pending' && sale.statut == 'completed'">
@@ -497,7 +354,9 @@
                     <textarea
                       v-model="sale.notes"
                       rows="4"
-                      class="form-control"
+                      ref="noteTextarea"
+                      @input="resizeTextarea"
+                      class="form-control auto-expand"
                       :placeholder="$t('Afewwords')"
                     ></textarea>
                   </b-form-group>
@@ -515,25 +374,6 @@
             </b-card>
           </b-col>
 
-          <b-col lg="4" md="12" sm="12">
-            <b-card>
-              <h6>{{$t('ProductList')}}</h6>
-              <div class="product-grid mt-3" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; max-height: 800px; overflow-y: auto; padding: 10px;">
-                <div 
-                  v-for="product in products" 
-                  :key="product.id" 
-                  @click="SearchProduct(product)" 
-                  class="card p-2 cursor-pointer text-center shadow-sm" 
-                  style="border: 1px solid #eee; transition: transform 0.2s;"
-                  onmouseover="this.style.transform='scale(1.05)'"
-                  onmouseout="this.style.transform='scale(1)'"
-                >
-                  <img :src="'/images/products/' + (product.image.split(',')[0])" style="width: 60px; height: 60px; object-fit: contain; margin: 0 auto;">
-                  <div class="mt-2 small font-weight-bold" style="line-height: 1.2; height: 2.4em; overflow: hidden;">{{product.name}}</div>
-                  <div class="text-muted" style="font-size: 10px;">{{product.code}}</div>
-                </div>
-              </div>
-            </b-card>
           </b-col>
         </b-row>
       </b-form>
@@ -1626,6 +1466,12 @@ export default {
           });
       }
     },
+
+    resizeTextarea() {
+      const element = this.$refs.noteTextarea;
+      element.style.height = "auto";
+      element.style.height = element.scrollHeight + "px";
+    },
     //--------------------------------- Create Sale -------------------------\\
     Create_Sale() {
       if (this.verifiedForm()) {
@@ -1747,6 +1593,35 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+  .main-content, .main-content label, .main-content input, .main-content .v-select, .main-content .table, .main-content .badge {
+    font-size: 1.1rem !important;
+  }
+  .main-content h5, .main-content h6 {
+    font-size: 1.3rem !important;
+  }
+  .main-content .form-control {
+    height: calc(1.5em + 1.1rem + 2px) !important;
+    font-size: 1.1rem !important;
+  }
+  .auto-expand {
+    height: auto !important;
+    min-height: 100px !important;
+    overflow-y: hidden !important;
+    resize: none !important;
+  }
+  .autocomplete-result {
+    font-size: 1.1rem !important;
+  }
+  .badge {
+    padding: 0.4em 0.7em !important;
+  }
+  .scan-icon {
+    width: 50px !important;
+    height: 50px !important;
+  }
+</style>
 
 <style>
 

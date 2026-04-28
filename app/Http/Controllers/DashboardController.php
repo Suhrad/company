@@ -319,16 +319,17 @@ class DashboardController extends Controller
         if ($product_warehouse_data->isNotEmpty()) {
 
             foreach ($product_warehouse_data as $product_warehouse) {
-                if ($product_warehouse->qte <= $product_warehouse['product']->stock_alert) {
+                $product = $product_warehouse['product'];
+                if ($product && $product_warehouse->qte <= $product->stock_alert) {
                     if ($product_warehouse->product_variant_id !== null) {
-                        $item['code'] = $product_warehouse['productVariant']->name . '-' . $product_warehouse['product']->code;
+                        $item['code'] = $product_warehouse['productVariant']->name . '-' . $product->code;
                     } else {
-                        $item['code'] = $product_warehouse['product']->code;
+                        $item['code'] = $product->code;
                     }
                     $item['quantity'] = $product_warehouse->qte;
-                    $item['name'] = $product_warehouse['product']->name;
-                    $item['warehouse'] = $product_warehouse['warehouse']->name;
-                    $item['stock_alert'] = $product_warehouse['product']->stock_alert;
+                    $item['name'] = $product->name;
+                    $item['warehouse'] = $product_warehouse['warehouse'] ? $product_warehouse['warehouse']->name : 'Unknown Warehouse';
+                    $item['stock_alert'] = $product->stock_alert;
                     $stock_alert[] = $item;
                 }
             }

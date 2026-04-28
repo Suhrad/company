@@ -803,6 +803,12 @@ export default {
     }
   },
 
+  watch: {
+    "product.name"(val) {
+      this.product.code = val;
+    }
+  },
+
   methods: {
 
       //------------------------------Formetted Numbers -------------------------\\

@@ -20,7 +20,7 @@
                 </b-modal>
 
                 <!-- warehouse -->
-                <b-col md="6" class="mb-3">
+                <b-col lg="4" md="4" sm="12" class="mb-3">
                   <validation-provider name="warehouse" :rules="{ required: true}">
                     <b-form-group slot-scope="{ valid, errors }" :label="$t('warehouse') + ' ' + '*'">
                       <v-select
@@ -37,9 +37,9 @@
                     </b-form-group>
                   </validation-provider>
                 </b-col>
-
+                
                 <!-- date  -->
-                <b-col lg="6" md="6" sm="12">
+                <b-col lg="4" md="4" sm="12" class="mb-3">
                   <validation-provider
                     name="date"
                     :rules="{ required: true}"
@@ -73,7 +73,7 @@
                       @focus="handleFocus"
                       @blur="handleBlur"
                       ref="product_autocomplete"
-                      class="autocomplete-input" />
+                      class="autocomplete-input w-100" />
                     </div>
                     <ul class="autocomplete-result-list" v-show="focused">
                       <li class="autocomplete-result" v-for="product_fil in product_filter" @mousedown="SearchProduct(product_fil)">{{getResultValue(product_fil)}}</li>
@@ -86,13 +86,12 @@
                   <div class="table-responsive">
                     <table class="table table-hover">
                       <thead class="bg-gray-300">
-                        <tr>
+                        <tr class="font-weight-bold">
                           <th scope="col">#</th>
-                          <th scope="col">{{$t('CodeProduct')}}</th>
-                          <th scope="col">{{$t('ProductName')}}</th>
-                          <th scope="col">{{$t('CurrentStock')}}</th>
-                          <th scope="col">{{$t('Qty')}}</th>
-                          <th scope="col">{{$t('type')}}</th>
+                          <th scope="col" style="font-size: 1.1rem;">Product</th>
+                          <th scope="col" style="font-size: 1.1rem;">Stock</th>
+                          <th scope="col" style="font-size: 1.1rem; width: 250px;">Qty</th>
+                          <th scope="col" style="font-size: 1.1rem;">Type</th>
                           <th scope="col" class="text-center">
                             <i class="fa fa-trash"></i>
                           </th>
@@ -104,50 +103,37 @@
                         </tr>
                         <tr v-for="detail in details" :key="detail.detail_id">
                           <td>{{detail.detail_id}}</td>
-                          <td>{{detail.code}}</td>
-                          <td>({{detail.name}})</td>
+                          <td class="font-weight-bold" style="font-size: 1.2rem;">
+                            <span>{{detail.code}}</span>
+                            <br>
+                            <span class="badge badge-success">{{detail.name}}</span>
+                          </td>
                           <td>
                             <span
                               class="badge badge-outline-warning"
                             >{{detail.current}} {{detail.unit}}</span>
                           </td>
                           <td>
-                            <div class="quantity">
-                              <b-input-group>
-                                <b-input-group-prepend>
-                                  <span
-                                    class="btn btn-primary btn-sm"
-                                    @click="decrement(detail ,detail.detail_id)"
-                                  >-</span>
-                                </b-input-group-prepend>
-
-                                <input
-                                  class="form-control"
-                                  @keyup="Verified_Qty(detail,detail.detail_id)"
-                                  :min="0.00"
-                                  :max="detail.current"
-                                  v-model.number="detail.quantity"
-                                >
-                                <b-input-group-append>
-                                  <span
-                                    class="btn btn-primary btn-sm"
-                                    @click="increment(detail ,detail.detail_id)"
-                                  >+</span>
-                                </b-input-group-append>
-                              </b-input-group>
-                            </div>
+                            <b-form-input
+                              v-model.number="detail.quantity"
+                              @keyup="Verified_Qty(detail,detail.detail_id)"
+                              type="number"
+                              class="form-control text-right"
+                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
+                            ></b-form-input>
                           </td>
                           <td>
-                            <select
+                            <v-select
                               v-model="detail.type"
-                              @change="Verified_Qty(detail,detail.detail_id)"
-                              type="text"
-                              required
-                              class="form-control"
-                            >
-                              <option value="add">{{$t('Addition')}}</option>
-                              <option value="sub">{{$t('Subtraction')}}</option>
-                            </select>
+                              @input="Verified_Qty(detail,detail.detail_id)"
+                              :reduce="label => label.value"
+                              :placeholder="$t('type')"
+                              :options="
+                                [
+                                  {label: $t('Addition'), value: 'add'},
+                                  {label: $t('Subtraction'), value: 'sub'},
+                                ]"
+                            ></v-select>
                           </td>
                           <td>
                             <a
@@ -168,7 +154,7 @@
                     <textarea
                       v-model="adjustment.notes"
                       rows="4"
-                      class="form-control"
+                      class="form-control auto-expand"
                       :placeholder="$t('Afewwords')"
                     ></textarea>
                   </b-form-group>
@@ -587,6 +573,25 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+  .main-content, .main-content label, .main-content input, .main-content .v-select, .main-content .table, .main-content .badge {
+    font-size: 1.1rem !important;
+  }
+  .main-content h5, .main-content h6 {
+    font-size: 1.3rem !important;
+  }
+  .main-content .form-control {
+    height: calc(1.5em + 1.1rem + 2px) !important;
+    font-size: 1.1rem !important;
+  }
+  .auto-expand {
+    height: auto !important;
+    min-height: 100px !important;
+    overflow-y: hidden !important;
+    resize: none !important;
+  }
+</style>
 
 <style>
 

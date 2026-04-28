@@ -78,7 +78,10 @@ class TransferController extends BaseController
         if($perPage == "-1"){
             $perPage = $totalRows;
         }
-        $transfers = $Filtred->offset($offSet)
+        $order = $request->SortField ?: 'id';
+        $dir = ($request->SortType == 'none' || !$request->SortType) ? 'desc' : $request->SortType;
+        $transfers = $Filtred->with('from_warehouse', 'to_warehouse', 'details.product')
+            ->offset($offSet)
             ->limit($perPage)
             ->orderBy($order, $dir)
             ->get();
@@ -92,6 +95,42 @@ class TransferController extends BaseController
             $item['GrandTotal'] = $transfer->GrandTotal;
             $item['items'] = $transfer->items;
             $item['statut'] = $transfer->statut;
+            $item['is_production'] = $transfer->is_production;
+            $item['notes'] = $transfer->notes;
+            
+            $inputs = [];
+            $input_qtys = [];
+            $outputs = [];
+            $output_qtys = [];
+            $all_products = [];
+            $all_qtys = [];
+
+            foreach ($transfer->details as $detail) {
+                $name = optional($detail->product)->name;
+                $all_products[] = $name;
+                $all_qtys[] = $detail->quantity;
+
+                if ($detail->flow_type == 'input') {
+                    $inputs[] = $name;
+                    $input_qtys[] = $detail->quantity;
+                } elseif ($detail->flow_type == 'output') {
+                    $outputs[] = $name;
+                    $output_qtys[] = $detail->quantity;
+                }
+            }
+
+            $item['total_input'] = array_sum($input_qtys);
+            $item['total_output'] = array_sum($output_qtys);
+            $item['wastage_total'] = $transfer->wastage_total;
+            if ($transfer->is_production) {
+                $item['products_name'] = "INPUTS:\n" . implode("\n", $inputs) . "\n\nOUTPUTS:\n" . implode("\n", $outputs);
+                $item['products_quantity'] = "IN:\n" . implode("\n", $input_qtys) . "\n\nOUT:\n" . implode("\n", $output_qtys);
+            } else {
+                $item['products_name'] = implode("\n", $all_products);
+                $item['products_quantity'] = implode("\n", $all_qtys);
+            }
+            $item['all_qtys_sum'] = array_sum($all_qtys);
+            
             $data[] = $item;
         }
 
@@ -135,6 +174,7 @@ class TransferController extends BaseController
             $order->discount = $request->transfer['discount']?$request->transfer['discount']:0;
             $order->shipping = $request->transfer['shipping']?$request->transfer['shipping']:0;
             $order->statut = $request->transfer['statut'];
+            $order->is_production = $request->transfer['is_production'] ?? false;
             $order->notes = $request->transfer['notes'];
             $order->GrandTotal = $request['GrandTotal'];
             $order->user_id = Auth::user()->id;
@@ -259,6 +299,14 @@ class TransferController extends BaseController
                 $orderDetails['discount'] = $value['discount'];
                 $orderDetails['discount_method'] = $value['discount_Method'];
                 $orderDetails['total'] = $value['subtotal'];
+
+                if ($order->is_production) {
+                    $orderDetails['flow_type'] = 'input';
+                    $orderDetails['production_status'] = 'in-process';
+                } else {
+                    $orderDetails['flow_type'] = 'standard';
+                    $orderDetails['production_status'] = 'completed';
+                }
 
                 TransferDetail::insert($orderDetails);
             }
@@ -1049,6 +1097,8 @@ class TransferController extends BaseController
         $transfer['to_warehouse'] = $Transfer_data['to_warehouse']->name;
         $transfer['items'] = $Transfer_data->items;
         $transfer['statut'] = $Transfer_data->statut;
+        $transfer['is_production'] = $Transfer_data->is_production;
+        $transfer['wastage_total'] = $Transfer_data->wastage_total;
         $transfer['GrandTotal'] = $Transfer_data->GrandTotal;
 
         foreach ($Transfer_data['details'] as $detail) {
@@ -1079,6 +1129,7 @@ class TransferController extends BaseController
             $data['quantity'] = $detail->quantity;
             $data['unit'] = $unit->ShortName;
             $data['total'] = $detail->total;
+            $data['flow_type'] = $detail->flow_type;
 
             $details[] = $data;
         }
@@ -1124,7 +1175,10 @@ class TransferController extends BaseController
         
         $transfer['statut'] = $transfer_data->statut;
         $transfer['Ref']    = $transfer_data->Ref;
-        $transfer['date']   = $transfer_data->date . ' ' . $transfer_data->time;
+        $transfer['date']   = $transfer_data->date;
+        $transfer['is_production'] = $transfer_data->is_production;
+        $transfer['wastage_total'] = $transfer_data->wastage_total;
+        $transfer['notes'] = $transfer_data->notes;
         
         $detail_id = 0;
         foreach ($transfer_data['details'] as $detail) {
@@ -1154,6 +1208,7 @@ class TransferController extends BaseController
                 $data['detail_id'] = $detail_id += 1;
                 $data['quantity'] = number_format($detail->quantity, 2, '.', '');
                 $data['unit_purchase'] = $unit->ShortName;
+                $data['flow_type'] = $detail->flow_type;
 
             
             $details[] = $data;
@@ -1182,4 +1237,81 @@ class TransferController extends BaseController
 
   
 
+    //------------- Complete Production -----------\\
+
+    public function complete_production(Request $request)
+    {
+        $this->authorizeForUser($request->user('api'), 'update', Transfer::class);
+
+        \DB::transaction(function () use ($request) {
+            $transfer = Transfer::findOrFail($request->transfer_id);
+            if ($transfer->statut == 'completed') {
+                throw new \Exception("This production is already completed.");
+            }
+            $outputs = $request->outputs;
+
+            // Total input weight
+            $total_input = TransferDetail::where('transfer_id', $transfer->id)
+                ->where('flow_type', 'input')
+                ->sum('quantity');
+
+            $total_output = 0;
+
+            foreach ($outputs as $value) {
+                $total_output += $value['quantity'];
+                
+                // Add output items
+                $detail = new TransferDetail;
+                $detail->transfer_id = $transfer->id;
+                $detail->quantity = $value['quantity'];
+                $detail->product_id = $value['product_id'];
+                $detail->product_variant_id = $value['product_variant_id'] ?? null;
+                $detail->flow_type = 'output';
+                $detail->production_status = 'completed';
+                
+                // Set default unit (purchase unit of product)
+                $product = Product::find($value['product_id']);
+                $detail->purchase_unit_id = $product->unit_purchase_id;
+                $detail->cost = $product->cost;
+                $detail->TaxNet = 0;
+                $detail->tax_method = $product->tax_method;
+                $detail->discount = 0;
+                $detail->discount_method = 1;
+                $detail->total = $product->cost * $value['quantity'];
+                
+                $detail->save();
+
+                // Increase stock at destination
+                $product_warehouse = product_warehouse::where('deleted_at', '=', null)
+                    ->where('warehouse_id', $transfer->to_warehouse_id)
+                    ->where('product_id', $value['product_id'])
+                    ->where('product_variant_id', $value['product_variant_id'] ?? null)
+                    ->first();
+
+                if ($product_warehouse) {
+                    $product_warehouse->qte += $value['quantity'];
+                    $product_warehouse->save();
+                } else {
+                    product_warehouse::create([
+                        'warehouse_id' => $transfer->to_warehouse_id,
+                        'product_id' => $value['product_id'],
+                        'product_variant_id' => $value['product_variant_id'] ?? null,
+                        'qte' => $value['quantity'],
+                    ]);
+                }
+            }
+            
+            // Mark input items as completed
+            TransferDetail::where('transfer_id', $transfer->id)
+                ->where('flow_type', 'input')
+                ->update(['production_status' => 'completed']);
+
+            $transfer->wastage_total = $total_input - $total_output;
+            $transfer->statut = 'completed';
+            $transfer->save();
+
+        }, 10);
+
+        return response()->json(['success' => true]);
+    }
 }

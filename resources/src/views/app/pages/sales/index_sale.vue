@@ -1039,6 +1039,13 @@ export default {
           thClass: "text-left"
         },
         {
+          label: "Qty",
+          field: "total_quantity",
+          tdClass: "text-center font-weight-bold",
+          thClass: "text-center",
+          sortable: false
+        },
+        {
           label: this.$t("Total"),
           field: "GrandTotal",
           tdClass: "text-left",
@@ -1359,17 +1366,20 @@ export default {
         { title: self.$t("date"), dataKey: "date" },
         { title: "Bill No.", dataKey: "Ref" },
         { title: "Party Name", dataKey: "party_details" },
+        { title: "Qty", dataKey: "total_quantity" },
         { title: "Bill Amount", dataKey: "GrandTotal" },
       ];
 
 
       let totalAmount = self.sales.reduce((sum, sale) => sum + parseFloat(sale.GrandTotal || 0), 0);
+      let totalQty = self.sales.reduce((sum, sale) => sum + parseFloat(sale.total_quantity || 0), 0);
 
       let footer = [{
         sr_no: '',
         date: '',
         Ref: '',
         party_details: 'Total .....',
+        total_quantity: totalQty.toFixed(2),
         GrandTotal: totalAmount.toFixed(2),
       }];
 
@@ -1380,6 +1390,7 @@ export default {
           date: sale.date,
           Ref: sale.Ref,
           party_details: `${sale.client_name}${sale.notes ? '\nNote: ' + sale.notes : ''}`,
+          total_quantity: sale.total_quantity,
           GrandTotal: self.formatNumber(sale.GrandTotal, 2),
         };
       });

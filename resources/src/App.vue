@@ -1,9 +1,6 @@
 <template>
   <div v-if="Loading">
     <router-view></router-view>
-
-
-    <customizer v-if="show_language && !isPosPage"></customizer>
   </div>
 </template>
 
@@ -19,7 +16,7 @@ export default {
   },
   computed: {
     
-    ...mapGetters(["getThemeMode","isAuthenticated","show_language","currentUser"]),
+    ...mapGetters(["getThemeMode","isAuthenticated","currentUser"]),
     themeName() {
       return this.getThemeMode.dark ? "dark-theme" : " ";
     },
@@ -85,7 +82,7 @@ export default {
 
   beforeMount() {
     this.refreshUserPermissions();
-    setTimeout(() => this.Loading= true, 300);
+    this.Loading = true;
   }
 };
 </script>

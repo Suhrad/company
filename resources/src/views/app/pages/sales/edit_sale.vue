@@ -104,15 +104,7 @@
                 <b-col md="12" class="mb-5">
                   <h6>{{$t('ProductName')}}</h6>
                  
-                    <div class="input-with-icon mb-2">
-                       <v-select
-                        v-model="selectedProductId"
-                        @input="Quick_Product_Select"
-                        :reduce="label => label.value"
-                        placeholder="Quickly Choose Product..."
-                        :options="products.map(p => ({label: p.name + ' (' + p.code + ')', value: p}))"
-                      />
-                    </div>
+
                     <div id="autocomplete" class="autocomplete">
                       <div class="input-with-icon">
                       <img src="/assets_setup/scan.png" alt="Scan" class="scan-icon" @click="showModal">
@@ -140,7 +132,8 @@
                         <tr>
                           <th scope="col">#</th>
                           <th scope="col">{{$t('ProductName')}}</th>
-                          <th scope="col">{{$t('Amount')}}</th>
+                          <th scope="col" style="width: 250px;">{{$t('Qty')}}</th>
+                          <th scope="col" style="width: 250px;">{{$t('Amount')}}</th>
                           <th scope="col" class="text-center">
                             <i class="i-Close-Window text-25"></i>
                           </th>
@@ -156,11 +149,21 @@
                             <span class="badge badge-success">{{detail.name}}</span>
                           </td>
                           <td>
-                             <b-form-input
+                            <b-form-input
+                              v-model.number="detail.quantity"
+                              @keyup="Verified_Qty(detail,detail.detail_id)"
+                              type="number"
+                              class="form-control text-center"
+                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
+                            ></b-form-input>
+                          </td>
+                          <td>
+                            <b-form-input
                               v-model.number="detail.subtotal"
                               @keyup="Manual_Amount_Update(detail)"
                               type="number"
                               class="form-control text-right"
+                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
                             ></b-form-input>
                           </td>
                           <td class="text-center">
@@ -176,20 +179,6 @@
                   <table class="table table-striped table-sm">
                     <tbody>
                       <tr>
-                        <td class="bold">{{$t('OrderTax')}}</td>
-                        <td>
-                          <span>{{currentUser.currency}} {{sale.TaxNet.toFixed(2)}} ({{formatNumber(sale.tax_rate ,2)}} %)</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td class="bold">{{$t('Discount')}}</td>
-                        <td>{{currentUser.currency}} {{sale.discount.toFixed(2)}}</td>
-                      </tr>
-                      <tr>
-                        <td class="bold">{{$t('Shipping')}}</td>
-                        <td>{{currentUser.currency}} {{sale.shipping.toFixed(2)}}</td>
-                      </tr>
-                      <tr>
                         <td>
                           <span class="font-weight-bold">{{$t('Total')}}</span>
                         </td>
@@ -203,126 +192,6 @@
                   </table>
                 </div>
 
-                 <!-- Order Tax  -->
-                <b-col lg="4" md="4" sm="12" class="mb-3" v-if="currentUserPermissions && currentUserPermissions.includes('edit_tax_discount_shipping_sale')">
-                  <validation-provider
-                    name="Order Tax"
-                    :rules="{ regex: /^\d*\.?\d*$/}"
-                    v-slot="validationContext"
-                  >
-                    <b-form-group :label="$t('OrderTax')">
-                      <b-input-group append="%">
-                        <b-form-input
-                          :state="getValidationState(validationContext)"
-                          aria-describedby="OrderTax-feedback"
-                          label="Order Tax"
-                          v-model.number="sale.tax_rate"
-                          @keyup="keyup_OrderTax()"
-                        ></b-form-input>
-                      </b-input-group>
-                      <b-form-invalid-feedback
-                        id="OrderTax-feedback"
-                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
-
-                <!-- Discount -->
-                <b-col lg="4" md="4" sm="12" class="mb-3" v-if="currentUserPermissions && currentUserPermissions.includes('edit_tax_discount_shipping_sale')">
-                  <validation-provider
-                    name="Discount"
-                    :rules="{ regex: /^\d*\.?\d*$/}"
-                    v-slot="validationContext"
-                  >
-                    <b-form-group :label="$t('Discount')">
-                      <b-input-group :append="currentUser.currency">
-                        <b-form-input
-                          :state="getValidationState(validationContext)"
-                          aria-describedby="Discount-feedback"
-                          label="Discount"
-                          v-model.number="sale.discount"
-                          @keyup="keyup_Discount()"
-                        ></b-form-input>
-                      </b-input-group>
-                      <b-form-invalid-feedback
-                        id="Discount-feedback"
-                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
-
-                <b-col lg="4" md="4" sm="12" class="mb-3" v-if="sale.used_points > 0 && currentUserPermissions && currentUserPermissions.includes('edit_tax_discount_shipping_sale')">
-                  <label>Points Used</label>
-                  <b-input-group class="mb-2">
-                    <b-form-input
-                      :value="sale.used_points"
-                      disabled
-                    ></b-form-input>
-
-                    <b-input-group-append>
-                      <b-button
-                        :variant="pointsConverted ? 'secondary' : 'success'"
-                        @click="convertPointsToDiscount"
-                        :disabled="sale.used_points === 0"
-                      >
-                        {{ pointsConverted ? '✅' : 'Convert' }}
-                      </b-button>
-                    </b-input-group-append>
-                  </b-input-group>
-
-                  <small v-if="discount_from_points > 0" class="text-success">
-                    ✅ Discount of {{ discount_from_points }} {{ currentUser.currency }} is applied
-                  </small>
-
-                  <!-- Hidden input to submit the discount -->
-                  <input type="hidden" name="discount_from_points" :value="discount_from_points">
-                </b-col>
-
-                <!-- Shipping  -->
-                <b-col lg="4" md="4" sm="12" class="mb-3" v-if="currentUserPermissions && currentUserPermissions.includes('edit_tax_discount_shipping_sale')">
-                  <validation-provider
-                    name="Shipping"
-                    :rules="{ regex: /^\d*\.?\d*$/}"
-                    v-slot="validationContext"
-                  >
-                    <b-form-group :label="$t('Shipping')">
-                      <b-input-group :append="currentUser.currency">
-                        <b-form-input
-                          :state="getValidationState(validationContext)"
-                          aria-describedby="Shipping-feedback"
-                          label="Shipping"
-                          v-model.number="sale.shipping"
-                          @keyup="keyup_Shipping()"
-                        ></b-form-input>
-                      </b-input-group>
-                      <b-form-invalid-feedback
-                        id="Shipping-feedback"
-                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
-
-                  <!-- Status  -->
-                <b-col lg="4" md="4" sm="12" class="mb-3">
-                  <validation-provider name="Status" :rules="{ required: true}">
-                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Status') + ' ' + '*'">
-                      <v-select
-                        :class="{'is-invalid': !!errors.length}"
-                        :state="errors[0] ? false : (valid ? true : null)"
-                        v-model="sale.statut"
-                        :reduce="label => label.value"
-                        :placeholder="$t('Choose_Status')"
-                        :options="
-                                [
-                                  {label: 'completed', value: 'completed'},
-                                  {label: 'Pending', value: 'pending'},
-                                  {label: 'ordered', value: 'ordered'}
-                                ]"
-                      ></v-select>
-                      <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
 
 
                 <b-col md="12">
@@ -1169,7 +1038,7 @@ export default {
         const name = warehouse.name.toUpperCase();
         if (name.includes("SHANTI")) shortform = "STM";
         else if (name.includes("NIMAR")) shortform = "NP";
-        else if (name.includes("SARAL")) shortform = "SR";
+        else if (name.includes("SARAL")) shortform = "SL";
         else if (name.includes("SARVESHWAR")) shortform = "SP";
 
         if (shortform) {
@@ -1186,6 +1055,35 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+  .main-content, .main-content label, .main-content input, .main-content .v-select, .main-content .table, .main-content .badge {
+    font-size: 1.1rem !important;
+  }
+  .main-content h5, .main-content h6 {
+    font-size: 1.3rem !important;
+  }
+  .main-content .form-control {
+    height: calc(1.5em + 1.1rem + 2px) !important;
+    font-size: 1.1rem !important;
+  }
+  .auto-expand {
+    height: auto !important;
+    min-height: 100px !important;
+    overflow-y: hidden !important;
+    resize: none !important;
+  }
+  .autocomplete-result {
+    font-size: 1.1rem !important;
+  }
+  .badge {
+    padding: 0.4em 0.7em !important;
+  }
+  .scan-icon {
+    width: 50px !important;
+    height: 50px !important;
+  }
+</style>
 
 <style>
 

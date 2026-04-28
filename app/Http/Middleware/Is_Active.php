@@ -13,12 +13,13 @@ class Is_Active
      */
     public function handle($request, Closure $next)
     {
-        $response = $next($request);
-        //If the status is not approved redirect to login 
-        if(Auth::check() && !Auth::user()->statut){
-            Auth::logout();
-            return redirect('/login')->with('erro_login', 'Your error text');
+        $user = auth()->user() ?? auth('api')->user();
+        
+        if($user && !$user->statut){
+            if (auth()->check()) auth()->logout();
+            return response()->json(['message' => 'Account is inactive.'], 403);
         }
-        return $response;
+        
+        return $next($request);
     }
 }
