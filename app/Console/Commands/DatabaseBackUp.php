@@ -55,9 +55,23 @@ class DatabaseBackUp extends Command
     public function handle()
     {
         foreach (glob(storage_path().'/app/public/backup/*') as $filename) {
-			$path = storage_path().'/app/public/backup/'.basename($filename);
+            $path = storage_path().'/app/public/backup/'.basename($filename);
             @unlink($path);
         } 
+
+        if (config('database.default') === 'sqlite') {
+            $db_path = database_path('database.sqlite');
+            $filename = "backup-" . Carbon::now()->format('Y-m-d') . ".sqlite";
+            $dest_dir = storage_path() . "/app/public/backup";
+            if (!file_exists($dest_dir)) {
+                mkdir($dest_dir, 0755, true);
+            }
+            $dest_path = $dest_dir . "/" . $filename;
+            if (file_exists($db_path)) {
+                copy($db_path, $dest_path);
+            }
+            return 0;
+        }
 
         $db_pass=env('DB_PASSWORD');
         $filename = "backup-" . Carbon::now()->format('Y-m-d') . ".sql"; 

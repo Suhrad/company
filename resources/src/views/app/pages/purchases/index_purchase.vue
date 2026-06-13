@@ -16,22 +16,10 @@
         placeholder: $t('Search_this_table'),
         enabled: true,
       }"
-        :select-options="{ 
-          enabled: true ,
-          clearSelectionText: '',
-        }"
-        @on-selected-rows-change="selectionChanged"
-        :pagination-options="{
-          enabled: true,
-          mode: 'records',
-          nextLabel: 'next',
-          prevLabel: 'prev',
-        }"
         :styleClass="showDropdown?'tableOne table-hover vgt-table full-height':'tableOne table-hover vgt-table non-height'"
+        @on-row-click="onRowClick"
       >
-        <div slot="selected-row-actions">
-          <button class="btn btn-danger btn-sm" @click="delete_by_selected()">{{$t('Del')}}</button>
-        </div>
+
         <div slot="table-actions" class="mt-2 mb-3">
           <b-button variant="outline-info ripple m-1" size="sm" v-b-toggle.sidebar-right>
             <i class="i-Filter-2"></i>
@@ -63,131 +51,12 @@
         </div>
 
         <template slot="table-row" slot-scope="props">
-          <span v-if="props.column.field == 'actions'">
-            <div>
-              <b-dropdown
-                id="dropdown-left"
-                variant="link"
-                text="Left align"
-                toggle-class="text-decoration-none"
-                size="lg"
-                no-caret
-              >
-                <template v-slot:button-content class="_r_btn border-0">
-                  <span class="_dot _r_block-dot bg-dark"></span>
-                  <span class="_dot _r_block-dot bg-dark"></span>
-                  <span class="_dot _r_block-dot bg-dark"></span>
-                </template>
-                  <b-dropdown-item title="Show" :to="'/app/purchases/detail/'+props.row.id">
-                    <i class="nav-icon i-Eye font-weight-bold mr-2"></i>
-                    {{$t('PurchaseDetail')}}
-                  </b-dropdown-item>
-
-                <b-dropdown-item
-                  title="Edit"
-                  v-if="currentUserPermissions.includes('Purchases_edit') && props.row.purchase_has_return == 'no'"
-                  :to="'/app/purchases/edit/'+props.row.id"
-                >
-                  <i class="nav-icon i-Pen-2 font-weight-bold mr-2"></i>
-                  {{$t('EditPurchase')}}
-                </b-dropdown-item>
-
-                 <b-dropdown-item
-                  title="Purchase Return"
-                  v-if="currentUserPermissions.includes('Purchase_Returns_add') && props.row.purchase_has_return == 'no' && props.row.statut == 'received'"
-                  :to="'/app/purchases/purchase_return/'+props.row.id"
-                >
-                  <i class="nav-icon i-Back font-weight-bold mr-2"></i>
-                  {{$t('Purchase_Return')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item
-                  title="Purchase Return"
-                  v-if="currentUserPermissions.includes('Purchase_Returns_add') && props.row.purchase_has_return == 'yes'"
-                  :to="'/app/purchase_return/edit/'+props.row.purchasereturn_id+'/'+props.row.id"
-                >
-                  <i class="nav-icon i-Back font-weight-bold mr-2"></i>
-                  {{$t('Purchase_Return')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item
-                  v-if="currentUserPermissions.includes('payment_purchases_view')"
-                  @click="Show_Payments(props.row.id , props.row)"
-                >
-                  <i class="nav-icon i-Money-Bag font-weight-bold mr-2"></i>
-                  {{$t('ShowPayment')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item
-                  v-if="currentUserPermissions.includes('payment_purchases_add') && props.row.statut == 'received'"
-                  @click="New_Payment(props.row)"
-                >
-                  <i class="nav-icon i-Add font-weight-bold mr-2"></i>
-                  {{$t('AddPayment')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item title="PDF" @click="Invoice_PDF(props.row , props.row.id)">
-                  <i class="nav-icon i-File-TXT font-weight-bold mr-2"></i>
-                  {{$t('DownloadPdf')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item title=" WhatsApp Notification" @click="Send_WhatsApp(props.row.id)">
-                  <i class="nav-icon i-Envelope-2 font-weight-bold mr-2"></i>
-                  WhatsApp Notification
-                </b-dropdown-item>
-
-                <b-dropdown-item title="Email" @click="Send_Email(props.row.id)">
-                  <i class="nav-icon i-Envelope-2 font-weight-bold mr-2"></i>
-                  {{$t('email_notification')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item title="SMS" @click="Purchase_SMS(props.row.id)">
-                  <i class="nav-icon i-Speach-Bubble font-weight-bold mr-2"></i>
-                  {{$t('sms_notification')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item
-                  title="Delete"
-                  v-if="currentUserPermissions.includes('Purchases_delete')"
-                  @click="Remove_Purchase(props.row.id , props.row.purchase_has_return)"
-                >
-                  <i class="nav-icon i-Close-Window font-weight-bold mr-2"></i>
-                  {{$t('DeletePurchase')}}
-                </b-dropdown-item>
-              </b-dropdown>
-            </div>
-          </span>
-          <div v-else-if="props.column.field == 'statut'">
-            <span
-              v-if="props.row.statut == 'received'"
-              class="badge badge-outline-success"
-            >{{$t('Received')}}</span>
-            <span
-              v-else-if="props.row.statut == 'pending'"
-              class="badge badge-outline-info"
-            >{{$t('Pending')}}</span>
-            <span v-else class="badge badge-outline-warning">{{$t('Ordered')}}</span>
+          <div v-if="props.column.field == 'Ref'">
+            <router-link :to="'/app/purchases/edit/'+props.row.id">
+              <span class="ul-btn__text ml-1">{{props.row.Ref}}</span>
+            </router-link> <br>
+            <small v-if="props.row.purchase_has_return == 'yes'"><i class="text-15 text-danger i-Back"></i></small>
           </div>
-
-          <div v-else-if="props.column.field == 'payment_status'">
-            <span
-              v-if="props.row.payment_status == 'paid'"
-              class="badge badge-outline-success"
-            >{{$t('Paid')}}</span>
-            <span
-              v-else-if="props.row.payment_status == 'partial'"
-              class="badge badge-outline-primary"
-            >{{$t('partial')}}</span>
-            <span v-else class="badge badge-outline-warning">{{$t('Unpaid')}}</span>
-          </div>
-           <div v-else-if="props.column.field == 'Ref'">
-              <router-link
-                :to="'/app/purchases/detail/'+props.row.id"
-              >
-                <span class="ul-btn__text ml-1">{{props.row.Ref}}</span>
-              </router-link> <br>
-              <small v-if="props.row.purchase_has_return == 'yes'"><i class="text-15 text-danger i-Back"></i></small>
-            </div>
         </template>
       </vue-good-table>
     </div>
@@ -604,12 +473,6 @@ export default {
           thClass: "text-left"
         },
         {
-          label: this.$t("Reference"),
-          field: "Ref",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
           label: this.$t("Supplier"),
           field: "provider_name",
           tdClass: "text-left",
@@ -622,47 +485,24 @@ export default {
           thClass: "text-left"
         },
         {
-          label: this.$t("Status"),
-          field: "statut",
-          html: true,
+          label: "Product",
+          field: "product_names",
           tdClass: "text-left",
-          thClass: "text-left"
+          thClass: "text-left",
+          sortable: false
+        },
+        {
+          label: "Qty",
+          field: "total_quantity",
+          tdClass: "text-center font-weight-bold",
+          thClass: "text-center",
+          sortable: false
         },
         {
           label: this.$t("Total"),
           field: "GrandTotal",
-          // type: "decimal",
-          tdClass: "text-left",
+          tdClass: "text-left font-weight-bold",
           thClass: "text-left"
-        },
-        {
-          label: this.$t("Paid"),
-          field: "paid_amount",
-          // type: "decimal",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
-          label: this.$t("Due"),
-          field: "due",
-          // type: "decimal",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
-          label: this.$t("PaymentStatus"),
-          field: "payment_status",
-          html: true,
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
-          label: this.$t("Action"),
-          field: "actions",
-          html: true,
-          tdClass: "text-right",
-          thClass: "text-right",
-          sortable: false
         }
       ];
     }
@@ -814,44 +654,74 @@ export default {
     //---------------------- Purchases PDF -------------------------------\\
     Purchase_PDF() {
       var self = this;
-      let pdf = new jsPDF("l", "pt"); // Landscape
+      let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
 
       const fontPath = "/fonts/Vazirmatn-Bold.ttf";
       pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
       pdf.setFont("VazirmatnBold"); 
 
       let columns = [
-        { title: "Sr.No", dataKey: "sr_no" },
-        { title: self.$t("date"), dataKey: "date" },
-        { title: "Bill No.", dataKey: "Ref" },
+        { title: "Date", dataKey: "date" },
+        { title: "Warehouse", dataKey: "warehouse_name" },
         { title: "Supplier Name", dataKey: "party_details" },
-        { title: "GST", dataKey: "tax_amount" },
-        { title: "Bill Amount", dataKey: "GrandTotal" },
+        { title: "Product", dataKey: "product_names" },
+        { title: "Items", dataKey: "item_quantities" },
+        { title: "Amount", dataKey: "GrandTotal" },
       ];
 
+      let totalAmount = self.purchases.reduce((sum, p) => sum + parseFloat(p.GrandTotal || 0), 0);
+      
+      // Calculate Total Items (Quantities)
+      let totalItems = 0;
+      self.purchases.forEach(p => {
+        if (p.items) {
+           const parts = p.items.split(', ');
+           parts.forEach(part => {
+             const m = part.match(/\(([^)]+)\)/);
+             if (m) totalItems += parseFloat(m[1]);
+           });
+        }
+      });
+
+      let footer = [{
+        date: '',
+        warehouse_name: '',
+        party_details: '',
+        product_names: 'Total .....',
+        item_quantities: totalItems.toFixed(2),
+        GrandTotal: totalAmount.toFixed(2),
+      }];
+
       let formatted_purchases = self.purchases.map((purchase, index) => {
-        let tax_total = parseFloat(purchase.cgst_amount || 0) + parseFloat(purchase.sgst_amount || 0) + parseFloat(purchase.igst_amount || 0);
+        // Warehouse Shortcut Mapping
+        let warehouseShortcut = purchase.warehouse_name || "";
+        if (warehouseShortcut.toLowerCase().includes("shanti") || warehouseShortcut.includes("STM")) warehouseShortcut = "STM";
+        else if (warehouseShortcut.toLowerCase().includes("nirmal") || warehouseShortcut.includes("NP")) warehouseShortcut = "NP";
+        else if (warehouseShortcut.includes("SL")) warehouseShortcut = "SL";
+        else if (warehouseShortcut.includes("SP")) warehouseShortcut = "SP";
+
+        // Extract product names and quantities separately
+        let productNames = "";
+        let itemQtys = "";
+        
+        if (purchase.items) {
+           const parts = purchase.items.split(', ');
+           productNames = parts.map(p => p.split(' (')[0]).join(', ');
+           itemQtys = parts.map(p => {
+             const m = p.match(/\(([^)]+)\)/);
+             return m ? m[1] : '';
+           }).join(', ');
+        }
+
         return {
-          sr_no: index + 1,
           date: purchase.date,
-          Ref: purchase.Ref,
-          party_details: `${purchase.provider_name}${purchase.notes ? '\nNote: ' + purchase.notes : ''}`,
-          tax_amount: tax_total.toFixed(2),
+          warehouse_name: warehouseShortcut,
+          party_details: purchase.provider_name + (purchase.notes ? "\n" + purchase.notes : ""),
+          product_names: productNames,
+          item_quantities: itemQtys,
           GrandTotal: self.formatNumber(purchase.GrandTotal, 2),
         };
       });
-
-      let totalTax = self.purchases.reduce((sum, p) => sum + (parseFloat(p.cgst_amount || 0) + parseFloat(p.sgst_amount || 0) + parseFloat(p.igst_amount || 0)), 0);
-      let totalAmount = self.purchases.reduce((sum, p) => sum + parseFloat(p.GrandTotal || 0), 0);
-
-      let footer = [{
-        sr_no: '',
-        date: '',
-        Ref: '',
-        party_details: 'Total .....',
-        tax_amount: totalTax.toFixed(2),
-        GrandTotal: totalAmount.toFixed(2),
-      }];
 
       pdf.autoTable({
         columns: columns,
@@ -863,36 +733,48 @@ export default {
           font: "VazirmatnBold", 
           fontSize: 9,
           halign: "center",
+          cellPadding: 5,
         },
         columnStyles: {
-           party_details: { halign: 'left' },
-           tax_amount: { halign: 'right' },
-           GrandTotal: { halign: 'right' },
+           warehouse_name: { cellWidth: 40, halign: 'center' },
+           party_details: { halign: 'left', cellWidth: 'auto' },
+           product_names: { halign: 'left', cellWidth: 120 },
+           item_quantities: { halign: 'center', cellWidth: 40 },
+           GrandTotal: { halign: 'right', cellWidth: 85, fontStyle: 'bold' },
+        },
+        headStyles: {
+          fillColor: [240, 240, 240], 
+          textColor: [0, 0, 0], 
+          fontStyle: "bold", 
+          lineWidth: 0.5,
+          lineColor: [0, 0, 0],
+          fontSize: 10,
+        },
+        footStyles: {
+          fillColor: [240, 240, 240], 
+          textColor: [0, 0, 0], 
+          fontStyle: "bold", 
+          lineWidth: 0.5,
+          lineColor: [0, 0, 0],
+          fontSize: 10,
         },
         didDrawPage: (data) => {
            pdf.setFont("VazirmatnBold");
            pdf.setFontSize(16);
            pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
            pdf.setFontSize(14);
-           pdf.text("Purchases List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
-        },
-        headStyles: {
-           fillColor: [242, 242, 242], 
-           textColor: [0, 0, 0], 
-           fontStyle: "bold", 
-           lineWidth: 0.5,
-           lineColor: [0, 0, 0],
-        },
-        footStyles: {
-           fillColor: [242, 242, 242], 
-           textColor: [0, 0, 0], 
-           fontStyle: "bold", 
-           lineWidth: 0.5,
-           lineColor: [0, 0, 0],
+           pdf.text("Purchase List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
         },
       });
 
       pdf.save("Purchases_List.pdf");
+    },
+
+    onRowClick(params) {
+      this.$router.push({
+        name: "edit_purchase",
+        params: { id: params.row.id }
+      });
     },
 
     Send_WhatsApp(id) {
@@ -1503,3 +1385,27 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+  .main-content >>> .vgt-table, 
+  .main-content >>> .vgt-wrap__footer, 
+  .main-content >>> .vgt-global-search__input,
+  .main-content >>> .vgt-global-search {
+    font-size: 1.3rem !important;
+  }
+  .main-content >>> .vgt-table th, 
+  .main-content >>> .vgt-table td {
+    padding: 12px 10px !important;
+    vertical-align: middle !important;
+  }
+  .main-content >>> .breadcrumb ul li {
+    font-size: 1.2rem !important;
+  }
+  .main-content >>> .breadcrumb h1 {
+    font-size: 1.8rem !important;
+  }
+  .main-content >>> .badge {
+    font-size: 1rem !important;
+    padding: 6px 10px !important;
+  }
+</style>

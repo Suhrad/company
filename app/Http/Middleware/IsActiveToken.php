@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\OauthAccessTokens;
+use App\Models\OauthAccessToken;
 use Closure;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -35,7 +35,7 @@ class IsActiveToken
                     if (strpos($arrayAccessValue, 'original') !== false) {
 
                         $userTokenId = $userAccessTokenArray[$arrayAccessValue]['id'];
-                        $checkToken = OauthAccessTokens::where([
+                        $checkToken = OauthAccessToken::where([
                             ['id', '=', $userTokenId],
                             ['expires_at', '>', Carbon::now()]
                         ])->first();

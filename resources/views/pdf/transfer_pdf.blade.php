@@ -4,13 +4,13 @@
       <meta charset="utf-8">
       <title>Transfer _{{$transfer['Ref']}}</title>
       <style>
-         body { font-family: 'DejaVu Sans', sans-serif; color: #333; font-size: 12px; line-height: 1.4; }
+         body { font-family: 'DejaVu Sans', sans-serif; color: #333; font-size: 15px; line-height: 1.4; }
          header { border-bottom: 2px solid #f2f2f2; padding-bottom: 10px; margin-bottom: 20px; }
          #logo { float: left; }
          #logo img { height: 50px; }
          #company { float: right; text-align: right; }
          .clearfix::after { content: ""; clear: both; display: table; }
-         #Title-heading { font-size: 18px; font-weight: bold; color: #444; margin: 10px 0; text-align: center; clear: both; }
+         #Title-heading { font-size: 22px; font-weight: bold; color: #444; margin: 10px 0; text-align: center; clear: both; }
          
          .section-title { background: #f2f2f2; padding: 5px 10px; font-weight: bold; margin-top: 15px; border-left: 4px solid #7367f0; }
          

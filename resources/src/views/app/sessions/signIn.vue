@@ -76,6 +76,7 @@
 <script>
 import { mapGetters, mapActions } from "vuex";
 import NProgress from "nprogress";
+import axios from 'axios';
 
 export default {
   metaInfo: {
@@ -94,7 +95,7 @@ export default {
     ...mapGetters(["isAuthenticated", "error"])
   },
   mounted() {
-    axios.get("/api/get-logo-setting")
+    axios.get("get-logo-setting")
       .then(response => {
         this.logo = response.data.logo
           ? `/images/${response.data.logo}`
@@ -139,13 +140,22 @@ export default {
         {
           baseURL: '',
         })
+        .then(() => {
+          return axios.post("getAccessToken", {
+            email: self.email,
+            password: self.password
+          });
+        })
         .then(response => {
+          if (response.data && response.data.Stocky_token) {
+            window.auth.setAuthToken(response.data.Stocky_token);
+          }
 
-            this.makeToast(
-              "success",
-              this.$t("Successfully_Logged_In"),
-              this.$t("Success")
-            );
+          this.makeToast(
+            "success",
+            this.$t("Successfully_Logged_In"),
+            this.$t("Success")
+          );
 
           window.location = '/';
            
@@ -156,10 +166,10 @@ export default {
           NProgress.done();
           this.loading = false;
           this.makeToast(
-              "danger",
-              this.$t("Incorrect_Login"),
-              this.$t("Failed")
-            );
+            "danger",
+            this.$t("Incorrect_Login"),
+            this.$t("Failed")
+          );
         });
     },
 

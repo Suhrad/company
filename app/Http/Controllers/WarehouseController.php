@@ -24,8 +24,8 @@ class WarehouseController extends Controller
         $pageStart = \Request::get('page', 1);
         // Start displaying items from this number;
         $offSet = ($pageStart * $perPage) - $perPage;
-        $order = $request->SortField;
-        $dir = $request->SortType;
+        $order = $request->SortField ? $request->SortField : 'id';
+        $dir = $request->SortType ? $request->SortType : 'desc';
 
         $warehouses = Warehouse::where('deleted_at', '=', null)
 
@@ -44,8 +44,12 @@ class WarehouseController extends Controller
         if($perPage == "-1"){
             $perPage = $totalRows;
         }
+
+        // SQLite fix: ensure limit is set if offset is used
+        $limit = ($perPage && $perPage > 0) ? $perPage : 1000000;
+
         $warehouses = $warehouses->offset($offSet)
-            ->limit($perPage)
+            ->limit($limit)
             ->orderBy($order, $dir)
             ->get();
 
@@ -92,6 +96,7 @@ class WarehouseController extends Controller
                                 'product_id'         => $product->id,
                                 'warehouse_id'       => $Warehouse->id,
                                 'product_variant_id' => $product_variant->id,
+                                'qte'                => 0,
                                 'manage_stock'       => $product->type == 'is_service'?0:1,
                             ];
                         }
@@ -100,6 +105,7 @@ class WarehouseController extends Controller
                             'product_id'         => $product->id,
                             'warehouse_id'       => $Warehouse->id,
                             'product_variant_id' => null,
+                            'qte'                => 0,
                             'manage_stock'       => $product->type == 'is_service'?0:1,
                         ];
                     }

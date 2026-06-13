@@ -60,7 +60,12 @@
         </div>
 
         <template slot="table-row" slot-scope="props">
-          <span v-if="props.column.field == 'actions'">
+          <span v-if="props.column.field == 'provider_with_details'">
+            <div class="font-weight-bold">{{props.row.provider_name}}</div>
+            <div class="text-muted small">{{props.row.details}}</div>
+          </span>
+
+          <span v-else-if="props.column.field == 'actions'">
             <router-link
               v-if="currentUserPermissions && currentUserPermissions.includes('expense_edit')"
               title="Edit"
@@ -223,50 +228,21 @@ export default {
           thClass: "text-left"
         },
         {
-          label: this.$t("Reference"),
-          field: "Ref",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-
-        {
-          label: this.$t("ModePaiement"),
-          field: "payment_method",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-
-
-        {
-          label: this.$t("Account"),
-          field: "account_name",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-       
-        {
-          label: this.$t("Amount"),
-          field: "amount",
-          type: "decimal",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
-          label: this.$t("Categorie"),
-          field: "category_name",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
           label: this.$t("warehouse"),
           field: "warehouse_name",
           tdClass: "text-left",
           thClass: "text-left"
         },
-         
         {
-          label: this.$t("Details"),
-          field: "details",
+          label: this.$t("Supplier"),
+          field: "provider_with_details",
+          tdClass: "text-left",
+          thClass: "text-left"
+        },
+        {
+          label: this.$t("Amount"),
+          field: "amount",
+          type: "decimal",
           tdClass: "text-left",
           thClass: "text-left"
         },
@@ -286,66 +262,79 @@ export default {
     //---------------------- Expenses PDF -------------------------------\\
     Expense_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      let pdf = new jsPDF("l", "pt"); // Landscape
 
       const fontPath = "/fonts/Vazirmatn-Bold.ttf";
       pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
       pdf.setFont("VazirmatnBold"); 
 
       let columns = [
+        { title: "Sr.No", dataKey: "sr_no" },
         { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("Account"), dataKey: "account_name" },
-        { title: self.$t("Categorie"), dataKey: "category_name" },
         { title: self.$t("warehouse"), dataKey: "warehouse_name" },
-        { title: self.$t("ModePaiement"), dataKey: "payment_method" },
+        { title: self.$t("Supplier"), dataKey: "provider_with_details" },
         { title: self.$t("Amount"), dataKey: "amount" },
       ];
 
-      // Calculate totals
       let totalGrandTotal = self.expenses.reduce((sum, expense) => sum + parseFloat(expense.amount || 0), 0);
      
-     let footer = [{
-       date: self.$t("Total"),
-       Ref: '',
-       account_name: '',
-       category_name: '',
-       warehouse_name: '',
-       payment_method: '',
-       amount: `${totalGrandTotal.toFixed(2)}`,
-      
-     }];
+      let footer = [{
+        sr_no: '',
+        date: '',
+        warehouse_name: '',
+        provider_with_details: 'Total .....',
+        amount: totalGrandTotal.toFixed(2),
+      }];
 
-     pdf.autoTable({
-      columns: columns,
-        body: self.expenses,
+      let formatted_expenses = self.expenses.map((expense, index) => {
+        return {
+          sr_no: index + 1,
+          date: expense.date,
+          warehouse_name: expense.warehouse_name,
+          provider_with_details: expense.provider_with_details,
+          amount: self.formatNumber(expense.amount, 2),
+        };
+      });
+
+      pdf.autoTable({
+        columns: columns,
+        body: formatted_expenses,
         foot: footer,
-        startY: 70,
+        startY: 80,
         theme: "grid", 
-        didDrawPage: (data) => {
-          pdf.setFont("VazirmatnBold");
-          pdf.setFontSize(18);
-          pdf.text("Expense List", 40, 25);   
-        },
         styles: {
           font: "VazirmatnBold", 
-          halign: "center", // 
+          fontSize: 9,
+          halign: "center",
+        },
+        columnStyles: {
+           provider_with_details: { halign: 'left' },
+           amount: { halign: 'right' },
         },
         headStyles: {
           fillColor: [200, 200, 200], 
           textColor: [0, 0, 0], 
           fontStyle: "bold", 
+          lineWidth: 0.5,
+          lineColor: [0, 0, 0],
         },
         footStyles: {
           fillColor: [230, 230, 230], 
           textColor: [0, 0, 0], 
           fontStyle: "bold", 
+          lineWidth: 0.5,
+          lineColor: [0, 0, 0],
         },
-    });
+        didDrawPage: (data) => {
+           pdf.setFont("VazirmatnBold");
+           pdf.setFontSize(16);
+           pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
+           pdf.setFontSize(14);
+           pdf.text("Expense List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
+        },
+      });
 
-
-     pdf.save("Expense_List.pdf");
-
+      pdf.save("Expense_List.pdf");
     },
 
     //------ update Params Table
@@ -520,6 +509,11 @@ export default {
             });
         }
       });
+    },
+    
+    formatNumber(number, dec) {
+      const value = (number / 1).toFixed(dec);
+      return value.split(".")[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + value.split(".")[1];
     },
 
   },

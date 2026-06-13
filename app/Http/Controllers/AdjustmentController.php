@@ -46,7 +46,7 @@ class AdjustmentController extends BaseController
         $data = array();
 
         // Check If User Has Permission View  All Records
-        $Adjustments = Adjustment::with('warehouse')
+        $Adjustments = Adjustment::with('warehouse', 'details.product')
             ->where('deleted_at', '=', null)
             ->where(function ($query) use ($view_records) {
                 if (!$view_records) {
@@ -82,6 +82,18 @@ class AdjustmentController extends BaseController
             $item['Ref']            = $Adjustment->Ref;
             $item['warehouse_name'] = $Adjustment['warehouse']->name;
             $item['items']          = $Adjustment->items;
+
+            $item['sub_items'] = $Adjustment->details->where('type', 'sub')->map(function($detail) {
+                return ($detail->product ? $detail->product->name : 'Product') . ' (' . (float)$detail->quantity . ')';
+            })->implode(', ') ?: '---';
+
+            $item['add_items'] = $Adjustment->details->where('type', 'add')->map(function($detail) {
+                return ($detail->product ? $detail->product->name : 'Product') . ' (' . (float)$detail->quantity . ')';
+            })->implode(', ') ?: '---';
+
+            $item['sub_qty'] = (float)$Adjustment->details->where('type', 'sub')->sum('quantity');
+            $item['add_qty'] = (float)$Adjustment->details->where('type', 'add')->sum('quantity');
+
             $data[]                 = $item;
         }
 
@@ -827,19 +839,8 @@ class AdjustmentController extends BaseController
 
     public function getNumberOrder()
     {
-
-        $last = DB::table('adjustments')->latest('id')->first();
-
-        if ($last) {
-            $item = $last->Ref;
-            $nwMsg = explode("_", $item);
-            $inMsg = $nwMsg[1] + 1;
-            $code = $nwMsg[0] . '_' . $inMsg;
-        } else {
-            $code = 'AD_1111';
-        }
-        return $code;
-
+        $lastId = DB::table('adjustments')->max('id') ?? 0;
+        return 'Ad' . ($lastId + 1);
     }
 
     //---------------- Show Form Create Adjustment ---------------\\

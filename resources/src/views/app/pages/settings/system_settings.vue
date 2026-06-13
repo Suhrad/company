@@ -91,10 +91,10 @@
                   <b-col lg="4" md="4" sm="12">
                     <validation-provider
                       name="Company Phone"
-                      :rules="{ required: true}"
+                      :rules="{}"
                       v-slot="validationContext"
                     >
-                      <b-form-group :label="$t('CompanyPhone') + ' ' + '*'">
+                      <b-form-group :label="$t('CompanyPhone')">
                         <b-form-input
                           :state="getValidationState(validationContext)"
                           aria-describedby="Phone-feedback"
@@ -239,10 +239,10 @@
                   <b-col lg="8" md="8" sm="12">
                     <validation-provider
                       name="Adress"
-                      :rules="{ required: true}"
+                      :rules="{}"
                       v-slot="validationContext"
                     >
-                      <b-form-group :label="$t('Adress') + ' ' + '*'">
+                      <b-form-group :label="$t('Adress')">
                          <textarea
                           :state="getValidationState(validationContext)"
                           aria-describedby="Adress-feedback"

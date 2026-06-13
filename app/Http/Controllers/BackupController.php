@@ -86,5 +86,14 @@ class BackupController extends Controller
          return $bytes;
      }
 
+    public function Download_Backup(Request $request, $name)
+    {
+        $this->authorizeForUser($request->user('api'), 'backup', User::class);
+        $path = storage_path() . '/app/public/backup/' . basename($name);
+        if (file_exists($path)) {
+            return response()->download($path);
+        }
+        return abort(404, "Backup file not found.");
+    }
 
 }

@@ -26,9 +26,9 @@
 
         <template slot="table-row" slot-scope="props">
           <span v-if="props.column.field == 'actions'">
-            <!-- <a v-b-tooltip.hover @click="DownloadBackup(props.row.date)" title="Download">
+            <a v-b-tooltip.hover @click="DownloadBackup(props.row.date)" title="Download">
               <i class="i-Download text-25 text-success"></i>
-            </a> -->
+            </a>
             <a title="Delete" v-b-tooltip.hover @click="DeleteBackup(props.row.date)">
               <i class="i-Close-Window text-25 text-danger"></i>
             </a>
@@ -126,6 +126,28 @@ export default {
           setTimeout(() => {
             this.isLoading = false;
           }, 500);
+        });
+    },
+
+    DownloadBackup(date) {
+      NProgress.start();
+      NProgress.set(0.1);
+      axios
+        .get("download_backup/" + date, {
+          responseType: "blob"
+        })
+        .then(response => {
+          const urlObj = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement("a");
+          link.href = urlObj;
+          link.setAttribute("download", date);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => NProgress.done(), 500);
+        })
+        .catch(() => {
+          setTimeout(() => NProgress.done(), 500);
         });
     },
 

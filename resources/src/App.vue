@@ -1,5 +1,5 @@
 <template>
-  <div v-if="Loading">
+  <div>
     <router-view></router-view>
   </div>
 </template>
@@ -10,9 +10,7 @@ import { mapActions, mapGetters } from "vuex";
 
 export default {
   data() {
-    return {
-      Loading:false,
-    };
+    return {};
   },
   computed: {
     
@@ -74,16 +72,13 @@ export default {
 
   mounted() {
     window.addEventListener('keydown', this.handleGlobalKeydown);
+    // Refresh user permissions in background (non-blocking)
+    this.refreshUserPermissions();
   },
 
   beforeDestroy() {
     window.removeEventListener('keydown', this.handleGlobalKeydown);
   },
-
-  beforeMount() {
-    this.refreshUserPermissions();
-    this.Loading = true;
-  }
 };
 </script>
 

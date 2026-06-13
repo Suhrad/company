@@ -35,7 +35,12 @@ class BaseController extends Controller
     //    Set cookie
     public function setCookie($cookie_name, $cookie_value)
     {
-        $domain = ($_SERVER['SERVER_NAME'] != 'localhost') ? $_SERVER['SERVER_NAME'] : '.'.$_SERVER['SERVER_NAME'];
+        $serverName = $_SERVER['SERVER_NAME'] ?? 'localhost';
+        if ($serverName === 'localhost' || filter_var($serverName, FILTER_VALIDATE_IP)) {
+            $domain = null;
+        } else {
+            $domain = '.' . ltrim($serverName, '.');
+        }
         $this->destroyCookie($cookie_name);
         setcookie($cookie_name, $cookie_value, time() + 2147483647, '/', $domain); 
     }
@@ -62,7 +67,12 @@ class BaseController extends Controller
     // Destroy cookie
     public function destroyCookie($cookie_name)
     {
-        $domain = ($_SERVER['SERVER_NAME'] != 'localhost') ? $_SERVER['SERVER_NAME'] : '.'.$_SERVER['SERVER_NAME'];
+        $serverName = $_SERVER['SERVER_NAME'] ?? 'localhost';
+        if ($serverName === 'localhost' || filter_var($serverName, FILTER_VALIDATE_IP)) {
+            $domain = null;
+        } else {
+            $domain = '.' . ltrim($serverName, '.');
+        }
         if (isset($_COOKIE[$cookie_name])) {
             unset($_COOKIE[$cookie_name]);
             setcookie($cookie_name, '', time() - 2147483647, '/',  $domain);
@@ -73,7 +83,12 @@ class BaseController extends Controller
     // Clear cookie
     public function clearCookie()
     {
-        $domain = ($_SERVER['SERVER_NAME'] != 'localhost') ? $_SERVER['SERVER_NAME'] : '.'.$_SERVER['SERVER_NAME'];
+        $serverName = $_SERVER['SERVER_NAME'] ?? 'localhost';
+        if ($serverName === 'localhost' || filter_var($serverName, FILTER_VALIDATE_IP)) {
+            $domain = null;
+        } else {
+            $domain = '.' . ltrim($serverName, '.');
+        }
         if (isset($_COOKIE['Stocky_token'])) {
             unset($_COOKIE['Stocky_token']);
             setcookie('Stocky_token', '', time() - 2147483647, '/', $domain); // empty value and old timestamp

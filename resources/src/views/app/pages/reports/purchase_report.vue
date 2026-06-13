@@ -260,17 +260,11 @@ components: { DateRangePicker },
           thClass: "text-left"
         },
         {
-          label: this.$t("Note"),
-          field: "notes",
+          label: "Items",
+          field: "items",
           tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
-          label: "GST",
-          field: "tax_amount",
-          type: "decimal",
-          tdClass: "text-right",
-          thClass: "text-right"
+          thClass: "text-left",
+          sortable: false
         },
         {
           label: "Bill Amount",
@@ -381,18 +375,17 @@ components: { DateRangePicker },
         { title: self.$t("date"), dataKey: "date" },
         { title: "Bill No.", dataKey: "Ref" },
         { title: "Supplier Name", dataKey: "party_details" },
-        { title: "GST", dataKey: "tax_amount" },
+        { title: "Items", dataKey: "items" },
         { title: "Bill Amount", dataKey: "GrandTotal" },
       ];
 
       let formatted_purchases = self.purchases.map((purchase, index) => {
-        let tax_total = parseFloat(purchase.cgst_amount || 0) + parseFloat(purchase.sgst_amount || 0) + parseFloat(purchase.igst_amount || 0);
         return {
           sr_no: index + 1,
           date: purchase.date,
           Ref: purchase.Ref,
           party_details: `${purchase.provider_name}${purchase.notes ? '\nNote: ' + purchase.notes : ''}`,
-          tax_amount: tax_total.toFixed(2),
+          items: purchase.items,
           GrandTotal: self.formatNumber(purchase.GrandTotal, 2),
         };
       });
@@ -404,8 +397,8 @@ components: { DateRangePicker },
         sr_no: '',
         date: '',
         Ref: '',
-        party_details: 'Total .....',
-        tax_amount: totalTax.toFixed(2),
+        party_details: '',
+        items: 'Total .....',
         GrandTotal: totalAmount.toFixed(2),
       }];
 
@@ -422,7 +415,7 @@ components: { DateRangePicker },
         },
         columnStyles: {
            party_details: { halign: 'left' },
-           tax_amount: { halign: 'right' },
+           items: { halign: 'left' },
            GrandTotal: { halign: 'right' },
         },
         didDrawPage: (data) => {

@@ -75,123 +75,70 @@
                   </validation-provider>
                 </b-col>
 
-                <!-- Production Transfer Toggle -->
-                <b-col lg="4" md="4" sm="12" class="mb-3">
-                  <b-form-group label="Process Type">
-                    <b-form-checkbox v-model="transfer.is_production" name="check-button" switch size="lg">
-                      <b>{{ transfer.is_production ? 'Production (Multi-stage)' : 'Standard Transfer' }}</b>
-                    </b-form-checkbox>
-                  </b-form-group>
-                </b-col>
-
-                <!-- Status  -->
-                <b-col lg="4" md="4" sm="12" class="mb-3">
-                  <validation-provider name="Status" :rules="{ required: true}">
-                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Status') + ' ' + '*'">
-                      <v-select
-                        :class="{'is-invalid': !!errors.length}"
-                        :state="errors[0] ? false : (valid ? true : null)"
-                        v-model="transfer.statut"
-                        :reduce="label => label.value"
-                        :placeholder="$t('Choose_Status')"
-                        :options="
-                            [
-                              {label: 'Completed', value: 'completed'},
-                              {label: 'Sent', value: 'sent'},
-                              {label: 'Pending', value: 'pending'},
-                            ]"
-                      ></v-select>
-                      <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
-
-                 <!-- Product -->
-                 <b-col md="12" class="mb-5">
+                <!-- Product Search (Standard) -->
+                <b-col md="12" class="mb-5">
                   <h6>{{$t('ProductName')}}</h6>
-                 
                   <div id="autocomplete" class="autocomplete">
                     <div class="input-with-icon">
-                      <img src="/assets_setup/scan.png" alt="Scan" class="scan-icon" @click="showModal">
+                      <img src="/assets_setup/scan.png" alt="Scan" class="scan-icon" @click="showModal('standard')">
                     <input 
-                     :placeholder="$t('Scan_Search_Product_by_Code_Name')"
-                       @input='e => search_input = e.target.value' 
-                      @keyup="search(search_input)"
-                      @focus="handleFocus"
-                      @blur="handleBlur"
+                      :placeholder="$t('Scan_Search_Product_by_Code_Name')"
+                      @input='e => search_input = e.target.value' 
+                      @keyup="search('standard', search_input)"
                       ref="product_autocomplete"
                       class="autocomplete-input" />
                     </div>
                     <ul class="autocomplete-result-list" v-show="focused">
-                      <li class="autocomplete-result" v-for="product_fil in product_filter" @mousedown="SearchProduct(product_fil)">{{getResultValue(product_fil)}}</li>
+                      <li class="autocomplete-result" v-for="product_fil in product_filter" @mousedown="SearchProduct('standard', product_fil)">{{getResultValue(product_fil)}}</li>
                     </ul>
-                </div>
-                </b-col>
-
-                <!-- order products  -->
-                <b-col md="12">
-                  <div class="table-responsive">
-                    <table class="table table-hover">
-                      <thead class="bg-gray-300">
-                        <tr>
-                          <th scope="col">#</th>
-                          <th scope="col">{{ transfer.is_production ? 'Input Goods' : $t('ProductName') }}</th>
-                          <th scope="col">{{$t('CurrentStock')}}</th>
-                          <th scope="col">{{$t('Qty')}}</th>
-                          <th scope="col" class="text-center">
-                            <i class="fa fa-trash"></i>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-if="details.length <=0">
-                          <td colspan="5">{{$t('NodataAvailable')}}</td>
-                        </tr>
-                        <tr v-for="detail in details">
-                          <td>{{detail.detail_id}}</td>
-                          <td>
-                            <span>{{detail.code}}</span>
-                            <br>
-                            <span class="badge badge-success">{{detail.name}}</span>
-                          </td>
-                          <td>
-                            <span
-                              class="badge badge-outline-warning"
-                            >{{detail.stock}} {{detail.unitPurchase}}</span>
-                          </td>
-                          <td>
-                            <b-form-input
-                              v-model.number="detail.quantity"
-                              @keyup="Verified_Qty(detail,detail.detail_id)"
-                              type="number"
-                              class="form-control text-right"
-                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
-                            ></b-form-input>
-                          </td>
-                          <td>
-                            <a
-                              @click="delete_Product_Detail(detail.detail_id)"
-                              class="btn btn-icon btn-sm"
-                              title="Delete"
-                            >
-                              <i class="i-Close-Window text-25 text-danger"></i>
-                            </a>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
                   </div>
                 </b-col>
 
-
-
-
-
+                <!-- Standard Table -->
                 <b-col md="12">
+                   <div class="table-responsive">
+                      <table class="table table-hover table-sm">
+                        <thead class="bg-gray-300">
+                          <tr>
+                            <th>{{$t('ProductName')}}</th>
+                            <th class="text-right">{{$t('Qty')}}</th>
+                            <th class="text-center"><i class="fa fa-trash"></i></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="(item, index) in details" :key="index">
+                            <td>
+                              <span class="font-weight-bold">{{item.name}}</span><br>
+                              <small class="text-muted">{{item.code}} | Stock: {{item.stock}}</small>
+                            </td>
+                            <td width="150">
+                              <b-form-input
+                                v-model.number="item.quantity"
+                                type="number"
+                                class="text-right font-weight-bold"
+                                style="height: 50px; font-size: 1.4rem;"
+                                @keyup="Calcul_Total"
+                              ></b-form-input>
+                            </td>
+                            <td class="text-center">
+                              <a @click="delete_Product_Detail(item.detail_id)" class="btn btn-icon btn-sm"><i class="i-Close-Window text-20 text-danger"></i></a>
+                            </td>
+                          </tr>
+                          <tr v-if="details.length == 0">
+                            <td colspan="3" class="text-center py-4 text-muted">No materials added.</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                   </div>
+                </b-col>
+
+
+
+                <b-col md="12" class="mt-5">
                   <b-form-group :label="$t('Note')">
                     <textarea
                       v-model="transfer.notes"
-                      rows="4"
+                      rows="3"
                       ref="noteTextarea"
                       @input="resizeTextarea"
                       class="form-control auto-expand"
@@ -199,10 +146,14 @@
                     ></textarea>
                   </b-form-group>
                 </b-col>
+
                 <b-col md="12">
                   <b-form-group>
-                    <b-button variant="primary" @click="Submit_Transfer" :disabled="SubmitProcessing"><i class="i-Yes me-2 font-weight-bold"></i> {{$t('submit')}}</b-button>
-                     <div v-once class="typo__p" v-if="SubmitProcessing">
+                    <b-button variant="primary" size="lg" @click="Submit_Transfer" :disabled="SubmitProcessing" class="mr-3">
+                      <i class="i-Add me-2 font-weight-bold"></i> {{$t('submit')}}
+                    </b-button>
+
+                    <div v-once class="typo__p" v-if="SubmitProcessing">
                       <div class="spinner sm spinner-primary mt-3"></div>
                     </div>
                   </b-form-group>
@@ -346,6 +297,45 @@
         </b-form>
       </b-modal>
     </validation-observer>
+    
+    <!-- Modal Select Consumption Product -->
+    <b-modal hide-footer id="modal_consumption" size="lg" title="Select Raw Materials to Deduct">
+      <b-row>
+        <b-col md="12" class="mb-3">
+           <b-form-input 
+            placeholder="Search Material Name or Code..." 
+            v-model="search_consumption"
+            @input="filterConsumptionProducts"
+          ></b-form-input>
+        </b-col>
+        <b-col md="12">
+          <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-sm table-hover">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Code</th>
+                  <th>Available Stock</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="prod in filtered_consumption_products" :key="prod.id">
+                  <td>{{ prod.name }}</td>
+                  <td>{{ prod.code }}</td>
+                  <td>{{ prod.qte_purchase }} {{ prod.unitPurchase }}</td>
+                  <td>
+                    <b-button variant="primary" size="sm" @click="addConsumptionProduct(prod)">
+                      Add to Deduct
+                    </b-button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </b-col>
+      </b-row>
+    </b-modal>
   </div>
 </template>
 
@@ -355,17 +345,24 @@ import NProgress from "nprogress";
 
 export default {
   metaInfo: {
-    title: "Create Transfer"
+    title: "Job Work / Transfer"
   },
   data() {
     return {
       focused: false,
-      timer:null,
-      search_input:'',
-      product_filter:[],
+      focused_input: false,
+      focused_output: false,
+      timer: null,
+      search_input: '',
+      search_input_input: '',
+      search_input_output: '',
+      product_filter: [],
+      product_filter_input: [],
+      product_filter_output: [],
       isLoading: true,
-      SubmitProcessing:false,
+      SubmitProcessing: false,
       details: [],
+      current_flow: 'standard',
       detail: {
         quantity: "",
         discount: "",
@@ -414,170 +411,79 @@ export default {
         subtotal: "",
         product_id: "",
         detail_id: "",
-        taxe: "",
-        tax_percent: "",
         tax_method: "",
-        product_variant_id: ""
+        product_variant_id: "",
+        flow_type: 'standard'
       }
     };
   },
   computed: {
-    ...mapGetters(["currentUser"])
+    ...mapGetters(["currentUser"]),
+    total_sent() {
+      return this.details
+        .filter(d => d.flow_type !== 'output')
+        .reduce((sum, d) => sum + (parseFloat(d.quantity) || 0), 0)
+        .toFixed(2);
+    },
+    total_received() {
+      return this.details
+        .filter(d => d.flow_type === 'output')
+        .reduce((sum, d) => sum + (parseFloat(d.quantity) || 0), 0)
+        .toFixed(2);
+    },
+    wastage() {
+      return (this.total_sent - this.total_received).toFixed(2);
+    },
+    wastage_percent() {
+      if (this.total_sent == 0) return 0;
+      return ((this.wastage / this.total_sent) * 100).toFixed(2);
+    }
   },
 
   methods: {
-
-     handleFocus() {
-      this.focused = true
-    },
-
-    handleBlur() {
-      this.focused = false
-    },
-
-    showModal() {
+    handleFocus() { this.focused = true },
+    handleBlur() { this.focused = false },
+    
+    showModal(type) {
+      this.current_flow = type;
       this.$bvModal.show('open_scan');
-      
     },
 
     onScan (decodedText, decodedResult) {
       const code = decodedText;
-      this.search_input = code;
-      this.search();
+      if (this.current_flow === 'input') this.search_input_input = code;
+      else if (this.current_flow === 'output') this.search_input_output = code;
+      else this.search_input = code;
+      
+      this.search(this.current_flow, code);
       this.$bvModal.hide('open_scan');
     },
 
-    
-    //------------- Submit Validation Create Transfer
     Submit_Transfer() {
       this.$refs.Create_transfer.validate().then(success => {
         if (!success) {
-          this.makeToast(
-            "danger",
-            this.$t("Please_fill_the_form_correctly"),
-            this.$t("Failed")
-          );
+          this.makeToast("danger", "Please fill the form correctly", "Failed");
         } else {
           this.Create_Transfer();
         }
       });
     },
 
-    //---Submit Validation Update Detail
-    submit_Update_Detail() {
-      this.$refs.Update_Detail_transfer.validate().then(success => {
+    Complete_Transfer() {
+      this.$refs.Create_transfer.validate().then(success => {
         if (!success) {
-          return;
+          this.makeToast("danger", "Please fill the form correctly", "Failed");
         } else {
-          this.Update_Detail();
+          this.transfer.statut = 'completed';
+          this.Create_Transfer();
         }
       });
     },
 
-     //---------------------- get_units ------------------------------\\
     get_units(value) {
-      axios
-        .get("get_units?id=" + value)
-        .then(({ data }) => (this.units = data));
+      axios.get("get_units?id=" + value).then(({ data }) => (this.units = data));
     },
 
-    //------ Show Modal Update Detail Product
-    Modal_Updat_Detail(detail) {
-      this.detail = {};
-      this.detail.name = detail.name;
-      this.get_units(detail.product_id);
-      this.detail.detail_id = detail.detail_id;
-      this.detail.purchase_unit_id = detail.purchase_unit_id;
-      this.detail.Unit_cost = detail.Unit_cost;
-      this.detail.tax_method = detail.tax_method;
-      this.detail.fix_cost = detail.fix_cost;
-      this.detail.fix_stock = detail.fix_stock;
-      this.detail.stock = detail.stock;
-      this.detail.discount_Method = detail.discount_Method;
-      this.detail.discount = detail.discount;
-      this.detail.quantity = detail.quantity;
-      this.detail.tax_percent = detail.tax_percent;
-      this.$bvModal.show("form_Update_Detail");
-    },
-
-    //------ Submit Update Detail Product
-
-    Update_Detail() {
-      for (var i = 0; i < this.details.length; i++) {
-        if (this.details[i].detail_id === this.detail.detail_id) {
-
-          // this.convert_unit();
-           for(var k=0; k<this.units.length; k++){
-              if (this.units[k].id == this.detail.purchase_unit_id) {
-                if(this.units[k].operator == '/'){
-                  this.details[i].stock       = this.detail.fix_stock  * this.units[k].operator_value;
-                  this.details[i].unitPurchase    = this.units[k].ShortName;
-
-                }else{
-                  this.details[i].stock       = this.detail.fix_stock  / this.units[k].operator_value;
-                  this.details[i].unitPurchase    = this.units[k].ShortName;
-                }
-              }
-            }
-
-
-            if (this.details[i].stock < this.details[i].quantity) {
-              this.details[i].quantity = this.details[i].stock;
-            } else {
-              this.details[i].quantity =1;
-            }
-            
-          
-          this.details[i].Unit_cost = this.detail.Unit_cost;
-          this.details[i].tax_percent = this.detail.tax_percent;
-          this.details[i].tax_method = this.detail.tax_method;
-          this.details[i].discount_Method = this.detail.discount_Method;
-          this.details[i].discount = this.detail.discount;
-          this.details[i].purchase_unit_id = this.detail.purchase_unit_id;
-
-          if (this.details[i].discount_Method == "2") {
-            //Fixed
-            this.details[i].DiscountNet = this.details[i].discount;
-          } else {
-            //Percentage %
-            this.details[i].DiscountNet = parseFloat(
-              (this.details[i].Unit_cost * this.details[i].discount) / 100
-            );
-          }
-
-          if (this.details[i].tax_method == "1") {
-            //Exclusive
-            this.details[i].Net_cost = parseFloat(
-              this.details[i].Unit_cost - this.details[i].DiscountNet
-            );
-
-            this.details[i].taxe = parseFloat(
-              (this.details[i].tax_percent *
-                (this.details[i].Unit_cost - this.details[i].DiscountNet)) /
-                100
-            );
-          } else {
-            //Inclusive
-            this.details[i].taxe = parseFloat(
-              (this.details[i].Unit_cost - this.details[i].DiscountNet) *
-                (this.details[i].tax_percent / 100)
-            );
-
-            this.details[i].Net_cost = parseFloat(
-              this.details[i].Unit_cost -
-                this.details[i].taxe -
-                this.details[i].DiscountNet
-            );
-          }
-
-          this.$forceUpdate();
-        }
-      }
-      this.Calcul_Total();
-      this.$bvModal.hide("form_Update_Detail");
-    },
-
-    //------ Toast
     makeToast(variant, msg, title) {
       this.$root.$bvToast.toast(msg, {
         title: title,
@@ -586,94 +492,84 @@ export default {
       });
     },
 
-    //---Validate State Fields
     getValidationState({ dirty, validated, valid = null }) {
       return dirty || validated ? valid : null;
     },
 
-    
-    // Search Products
-    search(){
-
-      if (this.timer) {
-            clearTimeout(this.timer);
-            this.timer = null;
+    search(type, input) {
+      if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+      if (input.length < 2) {
+        if (type === 'input') this.product_filter_input = [];
+        else if (type === 'output') this.product_filter_output = [];
+        else this.product_filter = [];
+        return;
       }
 
-      if (this.search_input.length < 2) {
+      if (this.transfer.from_warehouse != "" && this.transfer.from_warehouse != null) {
+        if (type === 'input') this.focused_input = true;
+        if (type === 'output') this.focused_output = true;
+        if (type === 'standard') this.focused = true;
 
-        return this.product_filter= [];
-      }
-      if (this.transfer.from_warehouse != "" &&  this.transfer.from_warehouse != null) {
         this.timer = setTimeout(() => {
-          const product_filter = this.products.filter(product => product.code === this.search_input || product.barcode.includes(this.search_input));
-            if(product_filter.length === 1){
-                this.SearchProduct(product_filter[0])
-            }else{
-                this.product_filter=  this.products.filter(product => {
-                  return (
-                    product.name.toLowerCase().includes(this.search_input.toLowerCase()) ||
-                    product.code.toLowerCase().includes(this.search_input.toLowerCase()) ||
-                    product.barcode.toLowerCase().includes(this.search_input.toLowerCase())
-                    );
-                });
+          const results = this.products.filter(product => {
+             return (
+               product.name.toLowerCase().includes(input.toLowerCase()) ||
+               product.code.toLowerCase().includes(input.toLowerCase()) ||
+               product.barcode.toLowerCase().includes(input.toLowerCase())
+             );
+          });
 
-                // Check if product_filter is empty and show alert
-                if (this.product_filter.length <= 0) {
-                  this.makeToast(
-                    "warning",
-                    "Product Not Found",
-                    "Warning"
-                  );
-                }
-            }
-        }, 800);
+          if (type === 'input') this.product_filter_input = results;
+          else if (type === 'output') this.product_filter_output = results;
+          else this.product_filter = results;
+
+          if (results.length <= 0) {
+            this.makeToast("warning", "Product Not Found", "Warning");
+          }
+        }, 500);
       } else {
-        this.makeToast(
-          "warning",
-          this.$t("SelectWarehouse"),
-          this.$t("Warning")
-        );
+        this.makeToast("warning", "Select Warehouse", "Warning");
       }
-
     },
-
-       
-
-    //-------------------- get Result Value Search Product
 
     getResultValue(result) {
       return result.code + " " + "(" + result.name + ")";
     },
 
-    //--------------------  Submit Search Product
-
-    SearchProduct(result) {
+    SearchProduct(type, result) {
       this.product = {};
-      if (
-        this.details.length > 0 &&
-        this.details.some(detail => detail.code === result.code)
-      ) {
-        this.makeToast("warning", this.$t("AlreadyAdd"), this.$t("Warning"));
+      this.current_flow = type;
+      
+      if (this.details.some(detail => detail.code === result.code && detail.flow_type === type)) {
+        this.makeToast("warning", "Already Added", "Warning");
       } else {
         this.product.code = result.code;
         this.product.stock = result.qte_purchase;
         this.product.fix_stock = result.qte;
-        if (result.qte_purchase < 1) {
-          this.product.quantity = result.qte_purchase;
-        } else {
-          this.product.quantity = 1;
-        }
+        this.product.quantity = 1;
         this.product.product_variant_id = result.product_variant_id;
+        this.product.flow_type = type === 'standard' ? 'standard' : type;
         this.Get_Product_Details(result.id, result.product_variant_id);
       }
 
-      this.search_input= '';
-      this.$refs.product_autocomplete.value = "";
-      this.product_filter = [];
+      if (type === 'input') {
+        this.search_input_input = '';
+        this.product_filter_input = [];
+        this.focused_input = false;
+        this.$refs.product_autocomplete_input.value = "";
+      } else if (type === 'output') {
+        this.search_input_output = '';
+        this.product_filter_output = [];
+        this.focused_output = false;
+        this.$refs.product_autocomplete_output.value = "";
+      } else {
+        this.search_input = '';
+        this.product_filter = [];
+        this.focused = false;
+        this.$refs.product_autocomplete.value = "";
+      }
     },
 
-    //-----------------------------------------Calcul Total ------------------------------\\
     Calcul_Total() {
       this.total = 0;
       for (let index = 0; index < this.details.length; index++) {
@@ -683,212 +579,59 @@ export default {
         );
         this.total = parseFloat(this.total + this.details[index].subtotal);
       }
-
-      const total_without_discount = parseFloat(
-        this.total - this.transfer.discount
-      );
-      this.transfer.TaxNet = parseFloat(
-        (total_without_discount * this.transfer.tax_rate) / 100
-      );
-      this.GrandTotal = parseFloat(
-        total_without_discount + this.transfer.TaxNet + this.transfer.shipping
-      );
-
-      var grand_total =  this.GrandTotal.toFixed(2);
-      this.GrandTotal = parseFloat(grand_total);
+      this.GrandTotal = parseFloat(this.total + this.transfer.shipping).toFixed(2);
     },
 
-    //---------- keyup OrderTax
-    keyup_OrderTax() {
-      if (isNaN(this.transfer.tax_rate)) {
-        this.transfer.tax_rate = 0;
-      } else if(this.transfer.tax_rate == ''){
-         this.transfer.tax_rate = 0;
-        this.Calcul_Total();
-      }else {
-        this.Calcul_Total();
-      }
-    },
-
-    //---------- keyup Discount
-
-    keyup_Discount() {
-      if (isNaN(this.transfer.discount)) {
-        this.transfer.discount = 0;
-      } else if(this.transfer.discount == ''){
-         this.transfer.discount = 0;
-        this.Calcul_Total();
-      }else {
-        this.Calcul_Total();
-      }
-    },
-
-    //---------- keyup Shipping
-
-    keyup_Shipping() {
-      if (isNaN(this.transfer.shipping)) {
-        this.transfer.shipping = 0;
-      } else if(this.transfer.shipping == ''){
-         this.transfer.shipping = 0;
-        this.Calcul_Total();
-      }else {
-        this.Calcul_Total();
-      }
-    },
-
-    //-----------------------------------Delete Detail Product ------------------------------\\
     delete_Product_Detail(id) {
-      for (var i = 0; i < this.details.length; i++) {
-        if (id === this.details[i].detail_id) {
-          this.details.splice(i, 1);
-          this.Calcul_Total();
-        }
-      }
+      this.details = this.details.filter(d => d.detail_id !== id);
+      this.Calcul_Total();
     },
-
-    //-----------------------------------Verified Form ------------------------------\\
 
     verifiedForm() {
       if (this.details.length <= 0) {
-        this.makeToast(
-          "warning",
-          this.$t("AddProductToList"),
-          this.$t("Warning")
-        );
+        this.makeToast("warning", "Add products to list", "Warning");
         return false;
-      } else if (this.transfer.from_warehouse === this.transfer.to_warehouse) {
-        this.makeToast(
-          "warning",
-          this.$t("WarehouseIdentical"),
-          this.$t("Warning")
-        );
-        return false;
-      } else {
-        var count = 0;
-        for (var i = 0; i < this.details.length; i++) {
-          if (
-            this.details[i].quantity == "" ||
-            this.details[i].quantity === 0
-          ) {
-            count += 1;
-          }
-        }
-
-        if (count > 0) {
-          this.makeToast("warning", this.$t("AddQuantity"), this.$t("Warning"));
-          return false;
-        } else {
-          return true;
-        }
       }
+      if (this.transfer.from_warehouse === this.transfer.to_warehouse) {
+        this.makeToast("warning", "Warehouses must be different", "Warning");
+        return false;
+      }
+      return true;
     },
 
-    //-------------------------------- Create Transfer ----------------------\\
     Create_Transfer() {
       if (this.verifiedForm()) {
         this.SubmitProcessing = true;
-        // Start the progress bar.
         NProgress.start();
-        NProgress.set(0.1);
-        axios
-          .post("transfers", {
-            transfer: this.transfer,
-            details: this.details,
-            GrandTotal: this.GrandTotal
-          })
-          .then(response => {
-            // Complete the animation of theprogress bar.
-            NProgress.done();
-            this.SubmitProcessing = false;
-            this.$router.push({
-              name: "index_transfer"
-            });
-
-            this.makeToast(
-              "success",
-              this.$t("Successfully_Created"),
-              this.$t("Success")
-            );
-          })
-          .catch(error => {
-            // Complete the animation of theprogress bar.
-            NProgress.done();
-            this.makeToast("danger", this.$t("InvalidData"), this.$t("Failed"));
-            this.SubmitProcessing = false;
-          });
+        
+        axios.post("transfers", {
+          transfer: this.transfer,
+          details: this.details,
+          GrandTotal: this.GrandTotal
+        })
+        .then(response => {
+          NProgress.done();
+          this.SubmitProcessing = false;
+          this.$router.push({ name: "index_transfer" });
+          this.makeToast("success", "Successfully Created", "Success");
+        })
+        .catch(error => {
+          NProgress.done();
+          this.makeToast("danger", "Invalid Data", "Failed");
+          this.SubmitProcessing = false;
+        });
       }
     },
 
-    //-------------------------------- Get Last Detail Id -------------------------\\
     Last_Detail_id() {
-      this.product.detail_id = 0;
-      var len = this.details.length;
-      this.product.detail_id = this.details[len - 1].detail_id + 1;
+      if (this.details.length === 0) return 1;
+      return Math.max(...this.details.map(d => d.detail_id)) + 1;
     },
 
-    //----------------------------------------- Add Detail of Transfer -------------------------\\
     add_Detail() {
-      if (this.details.length > 0) {
-        this.Last_Detail_id();
-      } else if (this.details.length === 0) {
-        this.product.detail_id = 1;
-      }
-
-      this.details.push(this.product);
+      this.product.detail_id = this.Last_Detail_id();
+      this.details.push({ ...this.product });
     },
-
-    //-----------------------------------Verified QTY ------------------------------\\
-    Verified_Qty(detail, id) {
-      for (var i = 0; i < this.details.length; i++) {
-        if (this.details[i].detail_id === id) {
-          if (isNaN(detail.quantity)) {
-            this.details[i].quantity = 1;
-          }
-          this.details[i].quantity = detail.quantity;
-        }
-      }
-      this.Calcul_Total();
-      this.$forceUpdate();
-    },
-
-    resizeTextarea() {
-      const element = this.$refs.noteTextarea;
-      element.style.height = "auto";
-      element.style.height = element.scrollHeight + "px";
-    },
-
-    //------------------------------Formetted Numbers -------------------------\\
-    formatNumber(number, dec) {
-      const value = (typeof number === "string"
-        ? number
-        : number.toString()
-      ).split(".");
-      if (dec <= 0) return value[0];
-      let formated = value[1] || "";
-      if (formated.length > dec)
-        return `${value[0]}.${formated.substr(0, dec)}`;
-      while (formated.length < dec) formated += "0";
-      return `${value[0]}.${formated}`;
-    },
-
-     //------------------------------------ Get Products By Warehouse -------------------------\\
-
-    Get_Products_By_Warehouse(id) {
-      // Start the progress bar.
-        NProgress.start();
-        NProgress.set(0.1);
-      axios
-        .get("get_Products_by_warehouse/" + id + "?stock=" + 1 + "&product_service=" + 0 + "&product_combo=" + 1)
-         .then(response => {
-            this.products = response.data;
-             NProgress.done();
-
-            })
-          .catch(error => {
-          });
-    },
-
-    //---------------------------------Get Product Details ------------------------\\
 
     Get_Product_Details(product_id, variant_id) {
       axios.get("/show_product_data/" + product_id +"/"+ variant_id).then(response => {
@@ -910,47 +653,80 @@ export default {
       });
     },
 
-    //---------------------- Event Select From Warehouse ------------------------------\\
+    resizeTextarea() {
+      const element = this.$refs.noteTextarea;
+      if (element) {
+        element.style.height = "auto";
+        element.style.height = element.scrollHeight + "px";
+      }
+    },
+
     Selected_From_Warehouse(value) {
-      this.search_input= '';
+      this.search_input = '';
       this.product_filter = [];
       this.Get_Products_By_Warehouse(value);
     },
 
-    //-------------------------------------- Get Elements Create Transfer----------------------\\
-    Get_Elements() {
-      axios
-        .get("transfers/create")
-        .then(response => { 
-          this.warehouses = response.data.warehouses;
-          this.to_warehouses = response.data.to_warehouses;
-          this.isLoading = false;
-        })
-        .catch(response => {
-          setTimeout(() => {
-            this.isLoading = false;
-          }, 500);
+    Get_Products_By_Warehouse(id) {
+      NProgress.start();
+      axios.get("get_Products_by_warehouse/" + id + "?stock=1&product_service=0&product_combo=1")
+        .then(response => {
+          this.products = response.data;
+          NProgress.done();
         });
+    },
+
+    Get_Elements() {
+      axios.get("transfers/create").then(response => { 
+        this.warehouses = response.data.warehouses;
+        this.to_warehouses = response.data.to_warehouses;
+        this.isLoading = false;
+      });
     }
   },
 
-  //----------------------------- Created function-------------------
   created: function() {
     this.Get_Elements();
   }
 };
 </script>
 
+
 <style scoped>
-  .main-content, .main-content label, .main-content input, .main-content .v-select, .main-content .table, .main-content .badge {
-    font-size: 1.1rem !important;
-  }
-  .main-content h5, .main-content h6 {
+  .main-content >>> .vgt-table, 
+  .main-content >>> .table,
+  .main-content >>> .form-group label {
     font-size: 1.3rem !important;
   }
-  .main-content .form-control {
-    height: calc(1.5em + 1.1rem + 2px) !important;
+  .main-content >>> .form-control {
+    font-size: 1.3rem !important;
+  }
+  .main-content >>> .v-select {
+    font-size: 1.3rem !important;
+  }
+  .main-content >>> .badge {
     font-size: 1.1rem !important;
+    padding: 6px 12px !important;
+  }
+  .main-content >>> .breadcrumb ul li {
+    font-size: 1.2rem !important;
+  }
+  .main-content >>> .breadcrumb h1 {
+    font-size: 1.8rem !important;
+  }
+  .main-content >>> .table th, 
+  .main-content >>> .table td {
+    padding: 12px 10px !important;
+    vertical-align: middle !important;
+  }
+  .main-content >>> h5, 
+  .main-content >>> h6 {
+    font-size: 1.5rem !important;
+    font-weight: bold !important;
+  }
+  .main-content >>> .autocomplete-input {
+    font-size: 1.5rem !important;
+    height: 50px !important;
   }
   .auto-expand {
     height: auto !important;
@@ -961,16 +737,15 @@ export default {
 </style>
 
 <style>
-
   .input-with-icon {
     display: flex;
     align-items: center;
   }
-
   .scan-icon {
-    width: 50px; /* Adjust size as needed */
+    width: 50px; 
     height: 50px;
-    margin-right: 8px; /* Adjust spacing as needed */
+    margin-right: 8px; 
     cursor: pointer;
   }
 </style>
+

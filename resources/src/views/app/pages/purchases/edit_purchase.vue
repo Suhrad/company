@@ -29,6 +29,7 @@
                   >
                     <b-form-group :label="$t('date') + ' ' + '*'">
                       <b-form-input
+                        :disabled="isReadOnly"
                         :state="getValidationState(validationContext)"
                         aria-describedby="date-feedback"
                         type="date"
@@ -45,6 +46,7 @@
                   <validation-provider name="Supplier" :rules="{ required: true}">
                     <b-form-group slot-scope="{ valid, errors }" :label="$t('Supplier') + ' ' + '*'">
                       <v-select
+                        :disabled="isReadOnly"
                         :class="{'is-invalid': !!errors.length}"
                         :state="errors[0] ? false : (valid ? true : null)"
                         v-model="purchase.supplier_id"
@@ -62,9 +64,9 @@
                   <validation-provider name="warehouse" :rules="{ required: true}">
                     <b-form-group slot-scope="{ valid, errors }" :label="$t('warehouse') + ' ' + '*'">
                       <v-select
+                        :disabled="isReadOnly"
                         :class="{'is-invalid': !!errors.length}"
                         :state="errors[0] ? false : (valid ? true : null)"
-                        :disabled="details.length > 0"
                         @input="Selected_Warehouse"
                         v-model="purchase.warehouse_id"
                         :reduce="label => label.value"
@@ -77,7 +79,7 @@
                 </b-col>
 
                 <!-- Product -->
-                <b-col md="12" class="mb-5">
+                <b-col md="12" class="mb-5" v-if="!isReadOnly">
                   <h6>{{$t('ProductName')}}</h6>
                  
                     <div class="input-with-icon mb-2">
@@ -116,7 +118,8 @@
                         <tr>
                           <th scope="col">#</th>
                           <th scope="col">{{$t('ProductName')}}</th>
-                          <th scope="col">{{$t('Amount')}}</th>
+                          <th scope="col" style="width: 250px;">{{$t('Qty')}}</th>
+                          <th scope="col" style="width: 250px;">{{$t('Amount')}}</th>
                           <th scope="col" class="text-center">
                             <i class="i-Close-Window text-25"></i>
                           </th>
@@ -129,17 +132,40 @@
                         >
                           <td>{{detail.detail_id}}</td>
                           <td>
-                            <span class="badge badge-success">{{detail.name}}</span>
+                            <v-select
+                              v-model="detail.product_id"
+                              :disabled="isReadOnly"
+                              :reduce="label => label.value"
+                              :placeholder="$t('Choose_Product')"
+                              :options="products.map(p => ({label: p.name + ' (' + p.code + ')', value: p.id}))"
+                              @input="onGridProductChange(detail)"
+                              class="grid-v-select"
+                              append-to-body
+                            />
+                          </td>
+                          <td>
+                            <b-form-input
+                              v-model.number="detail.quantity"
+                              :disabled="isReadOnly"
+                              @keyup="Verified_Qty(detail,detail.detail_id)"
+                              type="text"
+                              inputmode="decimal"
+                              class="form-control text-center"
+                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
+                            ></b-form-input>
                           </td>
                           <td>
                             <b-form-input
                               v-model.number="detail.subtotal"
+                              :disabled="isReadOnly"
                               @keyup="Manual_Amount_Update(detail)"
-                              type="number"
+                              type="text"
+                              inputmode="decimal"
                               class="form-control text-right"
+                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
                             ></b-form-input>
                           </td>
-                          <td class="text-center">
+                          <td class="text-center" v-if="!isReadOnly">
                             <i @click="delete_Product_Detail(detail.detail_id)" class="i-Close-Window text-25 text-danger cursor-pointer"></i>
                           </td>
                         </tr>
@@ -151,20 +177,7 @@
                 <div class="offset-md-9 col-md-3 mt-4">
                   <table class="table table-striped table-sm">
                     <tbody>
-                      <tr>
-                        <td class="bold">{{$t('OrderTax')}}</td>
-                        <td>
-                          <span>{{currentUser.currency}} {{purchase.TaxNet.toFixed(2)}} ({{formatNumber(purchase.tax_rate ,2)}} %)</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td class="bold">{{$t('Discount')}}</td>
-                        <td>{{currentUser.currency}} {{purchase.discount.toFixed(2)}}</td>
-                      </tr>
-                      <tr>
-                        <td class="bold">{{$t('Shipping')}}</td>
-                        <td>{{currentUser.currency}} {{purchase.shipping.toFixed(2)}}</td>
-                      </tr>
+
                       <tr>
                         <td>
                           <span class="font-weight-bold">{{$t('Total')}}</span>
@@ -179,83 +192,14 @@
                   </table>
                 </div>
 
-                 <!-- Order Tax  -->
-                <b-col lg="4" md="4" sm="12" class="mb-3" v-if="currentUserPermissions && currentUserPermissions.includes('edit_tax_discount_shipping_purchase')">
-                  <validation-provider
-                    name="Order Tax"
-                    :rules="{ regex: /^\d*\.?\d*$/}"
-                    v-slot="validationContext"
-                  >
-                    <b-form-group :label="$t('OrderTax')">
-                      <b-input-group append="%">
-                        <b-form-input
-                          :state="getValidationState(validationContext)"
-                          aria-describedby="OrderTax-feedback"
-                          label="Order Tax"
-                          v-model.number="purchase.tax_rate"
-                          @keyup="keyup_OrderTax()"
-                        ></b-form-input>
-                      </b-input-group>
-                      <b-form-invalid-feedback
-                        id="OrderTax-feedback"
-                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
 
-                <!-- Discount -->
-                <b-col lg="4" md="4" sm="12" class="mb-3" v-if="currentUserPermissions && currentUserPermissions.includes('edit_tax_discount_shipping_purchase')">
-                  <validation-provider
-                    name="Discount"
-                    :rules="{ regex: /^\d*\.?\d*$/}"
-                    v-slot="validationContext"
-                  >
-                    <b-form-group :label="$t('Discount')">
-                      <b-input-group :append="currentUser.currency">
-                        <b-form-input
-                          :state="getValidationState(validationContext)"
-                          aria-describedby="Discount-feedback"
-                          label="Discount"
-                          v-model.number="purchase.discount"
-                          @keyup="keyup_Discount()"
-                        ></b-form-input>
-                      </b-input-group>
-                      <b-form-invalid-feedback
-                        id="Discount-feedback"
-                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
-
-                <!-- Shipping  -->
-                <b-col lg="4" md="4" sm="12" class="mb-3" v-if="currentUserPermissions && currentUserPermissions.includes('edit_tax_discount_shipping_purchase')">
-                  <validation-provider
-                    name="Shipping"
-                    :rules="{ regex: /^\d*\.?\d*$/}"
-                    v-slot="validationContext"
-                  >
-                    <b-form-group :label="$t('Shipping')">
-                      <b-input-group :append="currentUser.currency">
-                        <b-form-input
-                          :state="getValidationState(validationContext)"
-                          aria-describedby="Shipping-feedback"
-                          label="Shipping"
-                          v-model.number="purchase.shipping"
-                          @keyup="keyup_Shipping()"
-                        ></b-form-input>
-                      </b-input-group>
-                      <b-form-invalid-feedback
-                        id="Shipping-feedback"
-                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
 
                  <!-- Status  -->
                 <b-col lg="4" md="4" sm="12" class="mb-3">
                   <validation-provider name="Status" :rules="{ required: true}">
                     <b-form-group slot-scope="{ valid, errors }" :label="$t('Status') + ' ' + '*'">
                       <v-select
+                        :disabled="isReadOnly"
                         :class="{'is-invalid': !!errors.length}"
                         :state="errors[0] ? false : (valid ? true : null)"
                         v-model="purchase.statut"
@@ -278,19 +222,31 @@
                   <b-form-group :label="$t('Note')">
                     <textarea
                       v-model="purchase.notes"
+                      :disabled="isReadOnly"
                       rows="4"
                       class="form-control"
                       :placeholder="$t('Afewwords')"
                     ></textarea>
                   </b-form-group>
                 </b-col>
-                <b-col md="12">
-                  <b-form-group>
-                    <b-button variant="primary" @click="Submit_Purchase" :disabled="SubmitProcessing"><i class="i-Yes me-2 font-weight-bold"></i> {{$t('submit')}}</b-button>
-                     <div v-once class="typo__p" v-if="SubmitProcessing">
-                      <div class="spinner sm spinner-primary mt-3"></div>
-                    </div>
-                  </b-form-group>
+                <b-col md="12" class="mt-4 border-top pt-3 d-flex justify-content-end">
+                   <div v-if="isReadOnly">
+                     <b-button variant="warning" class="m-1" @click="isReadOnly = false">
+                        <i class="i-Pen-2 me-2 font-weight-bold"></i> Edit
+                     </b-button>
+                     <b-button variant="danger" class="m-1" @click="Remove_Purchase_Direct">
+                        <i class="i-Close-Window me-2 font-weight-bold"></i> Delete
+                     </b-button>
+                     <b-button variant="success" class="m-1" @click="Invoice_PDF_Direct">
+                        <i class="i-File-Copy me-2 font-weight-bold"></i> Download as PDF
+                     </b-button>
+                   </div>
+                   <div v-else>
+                     <b-button variant="primary" class="m-1" @click="Submit_Purchase" :disabled="SubmitProcessing">
+                       <i class="i-Yes me-2 font-weight-bold"></i> {{$t('submit')}}
+                     </b-button>
+                     <b-button variant="outline-danger" class="m-1" @click="isReadOnly = true">Cancel</b-button>
+                   </div>
                 </b-col>
               </b-row>
             </b-card>
@@ -304,25 +260,6 @@
       <b-modal hide-footer size="lg" id="form_Update_Detail" :title="detail.name">
         <b-form @submit.prevent="submit_Update_Detail">
           <b-row>
-            <!-- Unit Cost -->
-             <b-col lg="6" md="6" sm="12">
-              <validation-provider
-                name="Product Cost"
-                :rules="{ required: true , regex: /^\d*\.?\d*$/}"
-                v-slot="validationContext"
-              >
-                <b-form-group :label="$t('ProductCost') + ' ' + '*'" id="cost-input">
-                  <b-form-input
-                    label="Product Cost"
-                    v-model.number="detail.Unit_cost"
-                    :state="getValidationState(validationContext)"
-                    aria-describedby="cost-feedback"
-                  ></b-form-input>
-                  <b-form-invalid-feedback id="cost-feedback">{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                </b-form-group>
-              </validation-provider>
-            </b-col>
-
             <!-- Tax Method -->
               <b-col lg="6" md="6" sm="12">
               <validation-provider name="Tax Method" :rules="{ required: true}">
@@ -442,6 +379,7 @@ export default {
   data() {
     return {
       focused: false,
+      isReadOnly: true,
       timer:null,
       search_input:'',
       product_filter:[],
@@ -563,6 +501,75 @@ export default {
       });
     },
 
+    //------------------------------ Invoice Purchase -------------------------------\\
+    Invoice_PDF_Direct() {
+      // Start the progress bar.
+      NProgress.start();
+      NProgress.set(0.1);
+      let id = this.$route.params.id;
+       axios
+        .get("purchase_pdf/" + id, {
+          responseType: "blob", // important
+          headers: {
+            "Content-Type": "application/json"
+          }
+        })
+        .then(response => {
+          const url = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", "Purchase-" + (this.purchase.Ref || id) + ".pdf");
+          document.body.appendChild(link);
+          link.click();
+          // Complete the animation of the  progress bar.
+          setTimeout(() => NProgress.done(), 500);
+        })
+        .catch(() => {
+          this.makeToast("danger", "Could not generate PDF. Please try again.", "Error");
+          // Complete the animation of the  progress bar.
+          setTimeout(() => NProgress.done(), 500);
+        });
+    },
+
+    //------------------------------- Remove Purchase -------------------------\\
+    Remove_Purchase_Direct() {
+      this.$swal({
+        title: this.$t("Delete_Title"),
+        text: this.$t("Delete_Text"),
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        cancelButtonText: this.$t("Delete_cancelButtonText"),
+        confirmButtonText: this.$t("Delete_confirmButtonText")
+      }).then(result => {
+        if (result.value) {
+          // Start the progress bar.
+          NProgress.start();
+          NProgress.set(0.1);
+          axios
+            .delete("purchases/" + this.purchase.id)
+            .then(() => {
+              this.$swal(
+                this.$t("Delete_Deleted"),
+                this.$t("Deleted_in_successfully"),
+                "success"
+              );
+              this.$router.push({ name: "index_purchases" });
+            })
+            .catch(() => {
+              // Complete the animation of the  progress bar.
+              setTimeout(() => NProgress.done(), 500);
+              this.$swal(
+                this.$t("Delete_Failed"),
+                this.$t("Delete_Therewassomethingwronge"),
+                "warning"
+              );
+            });
+        }
+      });
+    },
+
     //------  Show Modal Update Detail Product
     Modal_Updat_Detail(detail) {
       NProgress.start();
@@ -649,6 +656,10 @@ export default {
     },
 
     Manual_Amount_Update(detail) {
+      detail.subtotal = parseFloat(detail.subtotal || 0);
+      if (detail.quantity > 0) {
+        detail.Unit_cost = parseFloat((detail.subtotal / detail.quantity).toFixed(2));
+      }
       this.Calcul_Total();
     },
 
@@ -658,6 +669,26 @@ export default {
         this.selectedProductId = null;
       }
     },
+    onGridProductChange(detail) {
+      const product = this.products.find(p => p.id === detail.product_id);
+      if (product) {
+        detail.name = product.name;
+        detail.code = product.code;
+        detail.Unit_cost = product.Net_cost;
+        detail.tax_method = product.tax_method;
+        detail.tax_percent = product.tax_percent;
+        detail.is_imei = product.is_imei;
+        
+        axios.get("/show_product_data/" + product.id + "/" + (product.product_variant_id || "null")).then(response => {
+          detail.Unit_cost = response.data.Unit_cost;
+          detail.tax_percent = response.data.tax_percent;
+          detail.tax_method = response.data.tax_method;
+          detail.purchase_unit_id = response.data.purchase_unit_id;
+          this.Verified_Qty(detail, detail.detail_id);
+        });
+      }
+    },
+
     search(){
 
       if (this.timer) {
@@ -772,42 +803,23 @@ export default {
 
     //-----------------------------------Verified QTY ------------------------------\\
     Verified_Qty(detail, id) {
-      for (var i = 0; i < this.details.length; i++) {
-        if (this.details[i].detail_id == id) {
-          if (isNaN(detail.quantity)) {
-            this.details[i].quantity = 1;
-          }
-          this.Calcul_Total();
-          this.$forceUpdate();
-        }
+      if (isNaN(detail.quantity) || detail.quantity === "") {
+        detail.quantity = 0;
       }
-    },
-
-    //-----------------------------------increment QTY ------------------------------\\
-
-    increment(detail, id) {
-      for (var i = 0; i < this.details.length; i++) {
-        if (this.details[i].detail_id == id) {
-          this.formatNumber(this.details[i].quantity++, 2);
-        }
+      detail.quantity = parseFloat(detail.quantity);
+      
+      // If we have a subtotal and quantity > 0, back-calculate the cost to keep amount same
+      if (detail.subtotal > 0 && detail.quantity > 0) {
+        detail.Unit_cost = parseFloat((detail.subtotal / detail.quantity).toFixed(2));
+      } else {
+        // Fallback: if no subtotal yet, calculate subtotal from cost
+        detail.subtotal = parseFloat((detail.quantity * detail.Unit_cost).toFixed(2));
       }
-      this.$forceUpdate();
+      
       this.Calcul_Total();
     },
 
-    //-----------------------------------decrement QTY ------------------------------\\
 
-    decrement(detail, id) {
-      for (var i = 0; i < this.details.length; i++) {
-        if (this.details[i].detail_id == id) {
-          if (detail.quantity - 1 > 0) {
-            this.formatNumber(this.details[i].quantity--, 2);
-          }
-        }
-      }
-      this.$forceUpdate();
-      this.Calcul_Total();
-    },
 
     //---------- keyup OrderTax
     keyup_OrderTax() {
@@ -865,21 +877,12 @@ export default {
     Calcul_Total() {
       this.total = 0;
       for (var i = 0; i < this.details.length; i++) {
-        this.total = parseFloat(this.total + this.details[i].subtotal);
+        const detail = this.details[i];
+        detail.subtotal = parseFloat(parseFloat(detail.subtotal || 0).toFixed(2));
+        this.total = parseFloat((this.total + detail.subtotal).toFixed(2));
       }
 
-      const total_without_discount = parseFloat(
-        this.total - this.purchase.discount
-      );
-      this.purchase.TaxNet = parseFloat(
-        (total_without_discount * this.purchase.tax_rate) / 100
-      );
-      this.GrandTotal = parseFloat(
-        total_without_discount + this.purchase.TaxNet + this.purchase.shipping
-      );
-
-      var grand_total =  this.GrandTotal.toFixed(2);
-      this.GrandTotal = parseFloat(grand_total);
+      this.GrandTotal = parseFloat(this.total.toFixed(2));
     },
 
     //-----------------------------------Delete Detail Product ------------------------------\\
@@ -1025,6 +1028,29 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+  .main-content, .main-content label, .main-content input, .main-content .v-select, .main-content .table, .main-content .badge {
+    font-size: 1.3rem !important;
+  }
+  .main-content .form-control {
+    height: calc(1.5em + 1.1rem + 2px) !important;
+    font-size: 1.3rem !important;
+  }
+  .grid-v-select >>> .vs__dropdown-toggle {
+    border: none !important;
+    background: transparent !important;
+    border-radius: 0;
+    min-height: 60px;
+    font-size: 1.3rem;
+    display: flex;
+    align-items: center;
+  }
+  .grid-v-select.vs--open >>> .vs__dropdown-toggle {
+    background: #fff !important;
+    box-shadow: inset 0 0 0 2px #716aca;
+  }
+</style>
 
 <style>
 

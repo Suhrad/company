@@ -50,6 +50,7 @@ class PurchasesController extends BaseController
 
     public function index(request $request)
     {
+        set_time_limit(300); // Increase to 5 minutes for large lists
         $this->authorizeForUser($request->user('api'), 'view', Purchase::class);
         $role = Auth::user()->roles()->first();
         $view_records = Role::findOrFail($role->id)->inRole('record_view');
@@ -82,7 +83,7 @@ class PurchasesController extends BaseController
         $total = 0;
 
         // Check If User Has Permission View  All Records
-        $Purchases = Purchase::with('facture', 'provider', 'warehouse')
+        $Purchases = Purchase::with('facture', 'provider', 'warehouse', 'details.product')
             ->where('deleted_at', '=', null)
             ->where(function ($query) use ($view_records) {
                 if (!$view_records) {
@@ -141,6 +142,14 @@ class PurchasesController extends BaseController
             $item['due'] = number_format($item['GrandTotal'] - $item['paid_amount'], 2, '.', '');
             $item['payment_status'] = $Purchase->payment_statut;
 
+            $item['total_quantity'] = $Purchase->details->sum('quantity');
+            $item['product_names'] = $Purchase->details->map(function($detail){
+                return $detail->product ? $detail->product->name : '---';
+            })->unique()->implode(', ');
+            $item['items'] = $Purchase->details->map(function($detail) {
+                return ($detail->product ? $detail->product->name : '---') . ' (' . (float)$detail->quantity . ')';
+            })->implode(', ');
+
             if (PurchaseReturn::where('purchase_id', $Purchase['id'])->where('deleted_at', '=', null)->exists()) {
                 $PurchaseReturn = PurchaseReturn::where('purchase_id', $Purchase['id'])->where('deleted_at', '=', null)->first();
                 $item['purchasereturn_id'] = $PurchaseReturn->id;
@@ -187,82 +196,108 @@ class PurchasesController extends BaseController
             'warehouse_id' => 'required',
         ]);
 
-        \DB::transaction(function () use ($request) {
-            $order = new Purchase;
+        try {
+            $this->process_single_purchase($request->all());
+            return response()->json(['success' => true, 'message' => 'Purchase Created !!']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 
-            $order->date = $request->date;
+    // New Bulk Store Method
+    public function store_bulk(Request $request)
+    {
+        $this->authorizeForUser($request->user('api'), 'create', Purchase::class);
+        $purchases = $request->purchases;
+
+        if (!$purchases || count($purchases) == 0) {
+            return response()->json(['success' => false, 'message' => 'No purchases provided'], 400);
+        }
+
+        try {
+            \DB::transaction(function () use ($purchases) {
+                foreach ($purchases as $p_data) {
+                    $this->process_single_purchase($p_data);
+                }
+            });
+            return response()->json(['success' => true, 'message' => 'Bulk Purchases Created Successfully']);
+        } catch (\Exception $e) {
+            \Log::error('PURCHASE_BULK_ERROR: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    // Refactor single purchase logic
+    private function process_single_purchase($purchase_data)
+    {
+        $user_id = Auth::user() ? Auth::user()->id : 1;
+        return \DB::transaction(function () use ($purchase_data, $user_id) {
+            $order = new Purchase;
+            $order->date = $purchase_data['date'];
             $order->time = now()->toTimeString();
             $order->Ref = $this->getNumberOrder();
-            $order->provider_id = $request->supplier_id;
-            $order->GrandTotal = $request->GrandTotal;
-            $order->warehouse_id = $request->warehouse_id;
-            $order->tax_rate = $request->tax_rate;
-            $order->TaxNet = $request->TaxNet;
-            $order->discount = $request->discount;
-            $order->shipping = $request->shipping;
-            $order->statut = $request->statut;
+            $order->provider_id = $purchase_data['supplier_id'];
+            $order->GrandTotal = $purchase_data['GrandTotal'];
+            $order->warehouse_id = $purchase_data['warehouse_id'];
+            $order->tax_rate = $purchase_data['tax_rate'] ?? 0;
+            $order->TaxNet = $purchase_data['TaxNet'] ?? 0;
+            $order->discount = $purchase_data['discount'] ?? 0;
+            $order->shipping = $purchase_data['shipping'] ?? 0;
+            $order->statut = $purchase_data['statut'] ?? 'received';
             $order->payment_statut = 'unpaid';
-            $order->notes = $request->notes;
-            $order->user_id = Auth::user()->id;
-
+            $order->notes = $purchase_data['notes'] ?? '';
+            $order->user_id = $user_id;
             $order->save();
 
-            $data = $request['details'];
-            foreach ($data as $key => $value) {
-                $unit = Unit::where('id', $value['purchase_unit_id'])->first();
+            $orderDetails = [];
+            foreach ($purchase_data['details'] as $value) {
+                $unit = Unit::where('id', $value['purchase_unit_id'] ?? null)->first();
                 $orderDetails[] = [
                     'purchase_id' => $order->id,
                     'quantity' => $value['quantity'],
-                    'cost' => $value['Unit_cost'],
-                    'purchase_unit_id' =>  $value['purchase_unit_id'],
-                    'TaxNet' => $value['tax_percent'],
-                    'tax_method' => $value['tax_method'],
-                    'discount' => $value['discount'],
-                    'discount_method' => $value['discount_Method'],
+                    'cost' => $value['Unit_cost'] ?? 0,
+                    'purchase_unit_id' =>  $value['purchase_unit_id'] ?? null,
+                    'TaxNet' => $value['tax_percent'] ?? 0,
+                    'tax_method' => $value['tax_method'] ?? '1',
+                    'discount' => $value['discount'] ?? 0,
+                    'discount_method' => $value['discount_Method'] ?? '1',
                     'product_id' => $value['product_id'],
-                    'product_variant_id' => $value['product_variant_id'],
-                    'total' => $value['subtotal'],
-                    'imei_number' => $value['imei_number'],
+                    'product_variant_id' => $value['product_variant_id'] ?? null,
+                    'total' => $value['subtotal'] ?? 0,
+                    'imei_number' => $value['imei_number'] ?? '',
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ];
 
                 if ($order->statut == "received") {
-                    if ($value['product_variant_id'] !== null) {
-                        $product_warehouse = product_warehouse::where('deleted_at', '=', null)
-                            ->where('warehouse_id', $order->warehouse_id)
-                            ->where('product_id', $value['product_id'])
-                            ->where('product_variant_id', $value['product_variant_id'])
-                            ->first();
+                    $product_warehouse = product_warehouse::where('deleted_at', '=', null)
+                        ->where('warehouse_id', $order->warehouse_id)
+                        ->where('product_id', $value['product_id'])
+                        ->where('product_variant_id', $value['product_variant_id'])
+                        ->first();
 
-                        if ($unit && $product_warehouse) {
-                            if ($unit->operator == '/') {
-                                $product_warehouse->qte += $value['quantity'] / $unit->operator_value;
-                            } else {
-                                $product_warehouse->qte += $value['quantity'] * $unit->operator_value;
-                            }
-                            $product_warehouse->save();
+                    if (!$product_warehouse) {
+                        $product_warehouse = new product_warehouse();
+                        $product_warehouse->warehouse_id = $order->warehouse_id;
+                        $product_warehouse->product_id = $value['product_id'];
+                        $product_warehouse->product_variant_id = $value['product_variant_id'];
+                        $product_warehouse->qte = 0;
+                        $product_warehouse->save();
+                    }
+
+                    if ($unit) {
+                        if ($unit->operator == '/') {
+                            $product_warehouse->qte += $value['quantity'] / $unit->operator_value;
+                        } else {
+                            $product_warehouse->qte += $value['quantity'] * $unit->operator_value;
                         }
-
-                    } else {
-                        $product_warehouse = product_warehouse::where('deleted_at', '=', null)
-                            ->where('warehouse_id', $order->warehouse_id)
-                            ->where('product_id', $value['product_id'])
-                            ->first();
-
-                        if ($unit && $product_warehouse) {
-                            if ($unit->operator == '/') {
-                                $product_warehouse->qte += $value['quantity'] / $unit->operator_value;
-                            } else {
-                                $product_warehouse->qte += $value['quantity'] * $unit->operator_value;
-                            }
-                            $product_warehouse->save();
-                        }
+                        $product_warehouse->save();
                     }
                 }
             }
             PurchaseDetail::insert($orderDetails);
-        }, 10);
-
-        return response()->json(['success' => true, 'message' => 'Purchase Created !!']);
+            return $order;
+        });
     }
 
     //--------- Update Purchase  -------------\\
@@ -803,28 +838,29 @@ class PurchasesController extends BaseController
 
     public function getNumberOrder()
     {
-
-        $last = DB::table('purchases')->latest('id')->first();
-
-        if ($last) {
-            $item = $last->Ref;
-            $nwMsg = explode("_", $item);
-            $inMsg = $nwMsg[1] + 1;
-            $code = $nwMsg[0] . '_' . $inMsg;
-        } else {
-            $code = 'PR_1111';
+        $existing = DB::table('purchases')->whereNull('deleted_at')->pluck('Ref')->toArray();
+        $used = [];
+        foreach ($existing as $ref) {
+            if (preg_match('/^P(\d+)$/i', $ref, $matches)) {
+                $used[] = intval($matches[1]);
+            }
         }
-        return $code;
-
+        $n = 1;
+        while (in_array($n, $used)) {
+            $n++;
+        }
+        return 'P' . $n;
     }
 
     //-------------- purchase PDF -----------\\
 
     public function Purchase_pdf(Request $request, $id)
     {
+        set_time_limit(0); // No limit for PDF generation
+        $this->authorizeForUser($request->user('api'), 'view', Purchase::class);
         $details = array();
         $helpers = new helpers();
-        $Purchase_data = Purchase::with('details.product.unitPurchase')
+        $Purchase_data = Purchase::with('details.product.unitPurchase', 'provider', 'warehouse')
             ->where('deleted_at', '=', null)
             ->findOrFail($id);
 
@@ -839,9 +875,11 @@ class PurchasesController extends BaseController
         $purchase['statut'] = $Purchase_data->statut;
         $purchase['Ref'] = $Purchase_data->Ref;
         $purchase['date'] = $Purchase_data->date . ' ' . $Purchase_data->time;
+        $purchase['notes'] = $Purchase_data->notes;
+        $purchase['warehouse'] = $Purchase_data['warehouse']->name;
         $purchase['GrandTotal'] = number_format($Purchase_data->GrandTotal, 2, '.', '');
         $purchase['paid_amount'] = number_format($Purchase_data->paid_amount, 2, '.', '');
-        $purchase['due'] = number_format($purchase['GrandTotal'] - $purchase['paid_amount'], 2, '.', '');
+        $purchase['due'] = number_format($Purchase_data->GrandTotal - $Purchase_data->paid_amount, 2, '.', '');
         $purchase['payment_status'] = $Purchase_data->payment_statut;
 
         $detail_id = 0;
@@ -939,7 +977,8 @@ class PurchasesController extends BaseController
              $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name']);
          } 
 
-        $suppliers = Provider::where('deleted_at', '=', null)->get(['id', 'name']);
+        $helpers = new helpers();
+        $suppliers = $helpers->getUnifiedSuppliers();
 
         return response()->json([
             'warehouses' => $warehouses,
@@ -988,6 +1027,8 @@ class PurchasesController extends BaseController
                 $purchase['warehouse_id'] = '';
             }
 
+            $purchase['id'] = $Purchase_data->id;
+            $purchase['Ref'] = $Purchase_data->Ref;
             $purchase['date'] = $Purchase_data->date;
             $purchase['tax_rate'] = $Purchase_data->tax_rate;
             $purchase['TaxNet'] = $Purchase_data->TaxNet;
@@ -1102,7 +1143,8 @@ class PurchasesController extends BaseController
                 $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name']);
             }
             
-            $suppliers = Provider::where('deleted_at', '=', null)->get(['id', 'name']);
+            $helpers = new helpers();
+            $suppliers = $helpers->getUnifiedSuppliers();
 
             return response()->json([
                 'details' => $details,
@@ -1518,7 +1560,8 @@ class PurchasesController extends BaseController
                 $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name']);
             } 
     
-            $suppliers = Provider::where('deleted_at', '=', null)->get(['id', 'name']);
+            $helpers = new helpers();
+        $suppliers = $helpers->getUnifiedSuppliers();
     
             return response()->json([
                 'warehouses' => $warehouses,

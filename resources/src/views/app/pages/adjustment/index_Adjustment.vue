@@ -243,20 +243,33 @@ export default {
           thClass: "text-left"
         },
         {
-          label: this.$t("Reference"),
-          field: "Ref",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
           label: this.$t("warehouse"),
           field: "warehouse_name",
           tdClass: "text-left",
           thClass: "text-left"
         },
         {
-          label: this.$t("TotalProducts"),
-          field: "items",
+          label: "Consumed Material",
+          field: "sub_items",
+          tdClass: "text-left",
+          thClass: "text-left"
+        },
+        {
+          label: "Sub Qty",
+          field: "sub_qty",
+          type: "decimal",
+          tdClass: "text-left",
+          thClass: "text-left"
+        },
+        {
+          label: "Produced Product",
+          field: "add_items",
+          tdClass: "text-left",
+          thClass: "text-left"
+        },
+        {
+          label: "Add Qty",
+          field: "add_qty",
           type: "decimal",
           tdClass: "text-left",
           thClass: "text-left"
@@ -305,39 +318,102 @@ export default {
     //-------------------------------------- Adjustement PDF ------------------------------\\
     Adjustment_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
 
       const fontPath = "/fonts/Vazirmatn-Bold.ttf";
       pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
       pdf.setFont("VazirmatnBold"); 
 
       let columns = [
-        { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("warehouse"), dataKey: "warehouse_name" },
-        { title: self.$t("TotalProducts"), dataKey: "items" }
+        { title: "Date", dataKey: "date" },
+        { title: "Warehouse", dataKey: "warehouse_name" },
+        { title: "Product", dataKey: "product_names" },
+        { title: "Items", dataKey: "item_quantities" },
       ];
 
+      let formatted_adjustments = self.adjustments.map((adj) => {
+        let productNamesList = [];
+        let itemQtysList = [];
+
+        // Parse sub_items (subtracted items/consumed materials)
+        if (adj.sub_items && adj.sub_items !== '---') {
+          const parts = adj.sub_items.split(', ');
+          parts.forEach(p => {
+            const name = p.split(' (')[0];
+            const m = p.match(/\(([^)]+)\)/);
+            const qty = m ? m[1] : '';
+            productNamesList.push(name);
+            itemQtysList.push('-' + qty);
+          });
+        }
+
+        // Parse add_items (added items/produced products)
+        if (adj.add_items && adj.add_items !== '---') {
+          const parts = adj.add_items.split(', ');
+          parts.forEach(p => {
+            const name = p.split(' (')[0];
+            const m = p.match(/\(([^)]+)\)/);
+            const qty = m ? m[1] : '';
+            productNamesList.push(name);
+            itemQtysList.push('+' + qty);
+          });
+        }
+
+        return {
+          date: adj.date,
+          warehouse_name: adj.warehouse_name,
+          product_names: productNamesList.join(', '),
+          item_quantities: itemQtysList.join(', '),
+        };
+      });
+
       pdf.autoTable({
-      columns: columns,
-        body: self.adjustments,
-        startY: 70,
+        columns: columns,
+        body: formatted_adjustments,
+        startY: 80,
         theme: "grid", 
-        didDrawPage: (data) => {
-          pdf.setFont("VazirmatnBold");
-          pdf.setFontSize(18);
-          pdf.text("Adjustment List", 40, 25);   
-        },
         styles: {
           font: "VazirmatnBold", 
-          halign: "center", // 
+          fontSize: 9,
+          halign: "center",
+          cellPadding: 5,
+        },
+        columnStyles: {
+           date: { cellWidth: 80, halign: 'center' },
+           warehouse_name: { cellWidth: 80, halign: 'center' },
+           product_names: { halign: 'left', cellWidth: 'auto' },
+           item_quantities: { halign: 'center', cellWidth: 100 },
         },
         headStyles: {
-          fillColor: [200, 200, 200], 
+          fillColor: [240, 240, 240], 
           textColor: [0, 0, 0], 
           fontStyle: "bold", 
+          lineWidth: 0.5,
+          lineColor: [0, 0, 0],
+          fontSize: 10,
         },
-       
+        didDrawPage: (data) => {
+           pdf.setFont("VazirmatnBold");
+           pdf.setFontSize(16);
+           pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
+           pdf.setFontSize(14);
+           pdf.text("Adjustment List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
+           
+           // Filter Info
+           pdf.setFontSize(10);
+           let filterText = [];
+           if (self.Filter_warehouse) {
+             const wh = self.warehouses.find(w => w.id == self.Filter_warehouse);
+             if (wh) filterText.push(`Warehouse: ${wh.name}`);
+           }
+           if (self.Filter_date) {
+             filterText.push(`Date: ${self.Filter_date}`);
+           }
+
+           if (filterText.length > 0) {
+              pdf.text(filterText.join(" | "), pdf.internal.pageSize.width / 2, 65, { align: 'center' });
+           }
+        },
       });
 
       pdf.save("Adjustment_List.pdf");

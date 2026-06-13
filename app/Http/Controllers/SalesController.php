@@ -55,6 +55,7 @@ class SalesController extends BaseController
 
     public function index(request $request)
     {
+        set_time_limit(300); // Increase to 5 minutes for large lists
         $this->authorizeForUser($request->user('api'), 'view', Sale::class);
         $role = Auth::user()->roles()->first();
         $view_records = Role::findOrFail($role->id)->inRole('record_view');
@@ -89,7 +90,7 @@ class SalesController extends BaseController
         $data = array();
 
         // Check If User Has Permission View  All Records
-        $Sales = Sale::with('facture', 'client.company', 'warehouse','user')
+        $Sales = Sale::with('facture', 'client.company', 'warehouse','user', 'details.product')
             ->where('deleted_at', '=', null)
             ->where(function ($query) use ($view_records) {
                 if (!$view_records) {
@@ -138,8 +139,11 @@ class SalesController extends BaseController
             $item['date'] = $Sale['date'];
             $item['Ref']  = $Sale['Ref'];
             $item['created_by'] = $Sale['user']->username;
-            $item['statut'] = $Sale['statut'];
             $item['is_archive_import'] = (bool) $Sale['is_archive_import'];
+            
+            $item['items'] = $Sale->details->map(function($detail) {
+                return ($detail->product ? $detail->product->name : ($detail->item_name ?: 'Product')) . ' (' . (float)$detail->quantity . ')';
+            })->implode(', ');
             $item['company_name'] = optional(optional($Sale['client'])->company)->name;
             $item['shipping_status'] =  $Sale['shipping_status'];
             $item['discount'] = $Sale['discount'];
@@ -162,7 +166,13 @@ class SalesController extends BaseController
             $item['cgst_amount'] = $Sale['cgst_amount'];
             $item['sgst_amount'] = $Sale['sgst_amount'];
             $item['igst_amount'] = $Sale['igst_amount'];
-            $item['total_quantity'] = $Sale->details()->sum('quantity');
+            $item['total_quantity'] = $Sale->details->sum('quantity');
+            $item['product_names'] = $Sale->details->map(function($detail){
+                return $detail->product ? $detail->product->name : '---';
+            })->unique()->implode(', ');
+            $item['items'] = $Sale->details->map(function($detail){
+                return ($detail->product ? $detail->product->name : '---') . ' (' . $detail->quantity . ')';
+            })->implode(', ');
 
             if (SaleReturn::where('sale_id', $Sale['id'])->where('deleted_at', '=', null)->exists()) {
                 $sellReturn = SaleReturn::where('sale_id', $Sale['id'])->where('deleted_at', '=', null)->first();
@@ -207,9 +217,14 @@ class SalesController extends BaseController
 
     //------------- STORE NEW SALE-----------\\
 
+    /**
+     * Store a single sale.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
     public function store(Request $request)
     {
-
         $this->authorizeForUser($request->user('api'), 'create', Sale::class);
 
         request()->validate([
@@ -218,284 +233,329 @@ class SalesController extends BaseController
         ]);
 
         \DB::transaction(function () use ($request) {
-            $helpers = new helpers();
-            $order = new Sale;
-
-            $order->is_pos = 0;
-            $order->date = $request->date;
-            $order->time = now()->toTimeString();
-            $order->Ref = $this->getNumberOrder();
-            $order->client_id = $request->client_id;
-            $order->GrandTotal = $request->GrandTotal;
-            $order->warehouse_id = $request->warehouse_id;
-            $order->tax_rate = $request->tax_rate;
-            $order->TaxNet = $request->TaxNet;
-            $order->discount = $request->discount;
-            $order->shipping = $request->shipping;
-            $order->statut = $request->statut;
-            $order->payment_statut = 'unpaid';
-            $order->notes = $request->notes;
-            $order->transporter_name = $request->transporter_name;
-            $order->lr_number = $request->lr_number;
-            $order->user_id = Auth::user()->id;
-            $order->save();
-
-            $data = $request['details'];
-            $total_points_earned = 0;
-            foreach ($data as $key => $value) {
-
-                $product = Product::find($value['product_id']);
-                $unit = Unit::where('id', $value['sale_unit_id'])->first();
-                $total_points_earned += $value['quantity'] * $product->points;
-
-                $orderDetails[] = [
-                    'date'         => $request->date,
-                    'sale_id'      => $order->id,
-                    'sale_unit_id' => $value['sale_unit_id']?$value['sale_unit_id']:NULL,
-                    'quantity'     => $value['quantity'],
-                    'price'        => $value['Unit_price'],
-                    'TaxNet'       => $value['tax_percent'],
-                    'tax_method'   => $value['tax_method'],
-                    'discount'     => $value['discount'],
-                    'discount_method'    => $value['discount_Method'],
-                    'product_id'         => $value['product_id'],
-                    'product_variant_id' => $value['product_variant_id']?$value['product_variant_id']:NULL,
-                    'total'              => $value['subtotal'],
-                    'imei_number'        => $value['imei_number'],
-                ];
-
-
-                if ($order->statut == "completed") {
-                    if ($value['product_variant_id'] !== null) {
-                        $product_warehouse = product_warehouse::where('deleted_at', '=', null)
-                            ->where('warehouse_id', $order->warehouse_id)
-                            ->where('product_id', $value['product_id'])
-                            ->where('product_variant_id', $value['product_variant_id'])
-                            ->first();
-
-                        if ($unit && $product_warehouse) {
-                            if ($unit->operator == '/') {
-                                $product_warehouse->qte -= $value['quantity'] / $unit->operator_value;
-                            } else {
-                                $product_warehouse->qte -= $value['quantity'] * $unit->operator_value;
-                            }
-                            $product_warehouse->save();
-                        }
-
-                    } else {
-                        $product_warehouse = product_warehouse::where('deleted_at', '=', null)
-                            ->where('warehouse_id', $order->warehouse_id)
-                            ->where('product_id', $value['product_id'])
-                            ->first();
-
-                        if ($unit && $product_warehouse) {
-                            if ($unit->operator == '/') {
-                                $product_warehouse->qte -= $value['quantity'] / $unit->operator_value;
-                            } else {
-                                $product_warehouse->qte -= $value['quantity'] * $unit->operator_value;
-                            }
-                            $product_warehouse->save();
-                        }
-                    }
-                }
-            }
-            SaleDetail::insert($orderDetails);
-
-            $role = Auth::user()->roles()->first();
-            $view_records = Role::findOrFail($role->id)->inRole('record_view');
-
-            if ($request->payment['status'] != 'pending') {
-                $sale = Sale::findOrFail($order->id);
-                // Check If User Has Permission view All Records
-                if (!$view_records) {
-                    // Check If User->id === sale->id
-                    $this->authorizeForUser($request->user('api'), 'check_record', $sale);
-                }
-
-
-                try {
-
-                    $total_paid = $sale->paid_amount + $request['amount'];
-                    $due = $sale->GrandTotal - $total_paid;
-                    
-                    if ($due === 0.0 || $due < 0.0) {
-                        $payment_statut = 'paid';
-                    } else if ($due != $sale->GrandTotal) {
-                        $payment_statut = 'partial';
-                    } else if ($due == $sale->GrandTotal) {
-                        $payment_statut = 'unpaid';
-                    }
-                    
-                    if($request['amount'] > 0 && $request->payment['status'] != 'pending'){
-                        if ($request->payment['payment_method_id'] == 1 || $request->payment['payment_method_id'] == '1') {
-                            $Client = Client::whereId($request->client_id)->first();
-                            Stripe\Stripe::setApiKey(config('app.STRIPE_SECRET'));
-    
-                            // Check if the payment record exists
-                            $PaymentWithCreditCard = PaymentWithCreditCard::where('customer_id', $request->client_id)->first();
-                            if (!$PaymentWithCreditCard) {
-    
-                                // Create a new customer and charge the customer with a new credit card
-                                $customer = \Stripe\Customer::create([
-                                    'source' => $request->token,
-                                    'email'  => $Client->email,
-                                    'name'   => $Client->name,
-                                ]);
-    
-                                // Charge the Customer instead of the card:
-                                $charge = \Stripe\Charge::create([
-                                    'amount'   => $request['amount'] * 100,
-                                    'currency' => 'usd',
-                                    'customer' => $customer->id,
-                                ]);
-                                $PaymentCard['customer_stripe_id'] = $customer->id;
-    
-                            // Check if the payment record not exists
-                            } else {
-    
-                                 // Retrieve the customer ID and card ID
-                                $customer_id = $PaymentWithCreditCard->customer_stripe_id;
-                                $card_id = $request->card_id;
-    
-                                // Charge the customer with the new credit card or the selected card
-                                if ($request->is_new_credit_card || $request->is_new_credit_card == 'true' || $request->is_new_credit_card === 1) {
-                                    // Retrieve the customer
-                                    $customer = \Stripe\Customer::retrieve($customer_id);
-    
-                                    // Create New Source
-                                    $card = \Stripe\Customer::createSource(
-                                        $customer_id,
-                                        [
-                                          'source' => $request->token,
-                                        ]
-                                      );
-    
-                                    $charge = \Stripe\Charge::create([
-                                        'amount'   => $request['amount'] * 100,
-                                        'currency' => 'usd',
-                                        'customer' => $customer_id,
-                                        'source'   => $card->id,
-                                    ]);
-                                    $PaymentCard['customer_stripe_id'] = $customer_id;
-    
-                                } else {
-                                    $charge = \Stripe\Charge::create([
-                                        'amount'   => $request['amount'] * 100,
-                                        'currency' => 'usd',
-                                        'customer' => $customer_id,
-                                        'source'   => $card_id,
-                                    ]);
-                                    $PaymentCard['customer_stripe_id'] = $customer_id;
-                                }
-                            }
-    
-                            $PaymentSale            = new PaymentSale();
-                            $PaymentSale->sale_id   = $order->id;
-                            $PaymentSale->Ref       = app('App\Http\Controllers\PaymentSalesController')->getNumberOrder();
-                            $PaymentSale->date      = Carbon::now();
-                            $PaymentSale->payment_method_id = $request->payment['payment_method_id'];
-                            $PaymentSale->montant   = $request['amount'];
-                            $PaymentSale->change    = $request['change'];
-                            $PaymentSale->notes     = NULL;
-                            $PaymentSale->user_id   = Auth::user()->id;
-                            $PaymentSale->account_id   = $request->payment['account_id']?$request->payment['account_id']:NULL;
-                            $PaymentSale->save();
-
-                            $account = Account::where('id', $request->payment['account_id'])->exists();
-
-                            if ($account) {
-                                // Account exists, perform the update
-                                $account = Account::find($request->payment['account_id']);
-                                $account->update([
-                                    'balance' => $account->balance + $request['amount'],
-                                ]);
-                            }
-    
-                            $sale->update([
-                                'paid_amount'    => $total_paid,
-                                'payment_statut' => $payment_statut,
-                            ]);
-    
-                            $PaymentCard['customer_id'] = $request->client_id;
-                            $PaymentCard['payment_id']  = $PaymentSale->id;
-                            $PaymentCard['charge_id']   = $charge->id;
-                            PaymentWithCreditCard::create($PaymentCard);
-    
-                            // Paying Method Cash
-                        } else {
-    
-                            PaymentSale::create([
-                                'sale_id' => $order->id,
-                                'Ref' => app('App\Http\Controllers\PaymentSalesController')->getNumberOrder(),
-                                'date' => Carbon::now(),
-                                'account_id' => $request->payment['account_id']?$request->payment['account_id']:NULL,
-                                'payment_method_id' => $request->payment['payment_method_id'],
-                                'montant' => $request['amount'],
-                                'change' => $request['change'],
-                                'notes' => NULL,
-                                'user_id' => Auth::user()->id,
-                            ]);
-
-                            $account = Account::where('id', $request->payment['account_id'])->exists();
-
-                            if ($account) {
-                                // Account exists, perform the update
-                                $account = Account::find($request->payment['account_id']);
-                                $account->update([
-                                    'balance' => $account->balance + $request['amount'],
-                                ]);
-                            }
-    
-                            $sale->update([
-                                'paid_amount' => $total_paid,
-                                'payment_statut' => $payment_statut,
-                            ]);
-                        }
-    
-                    }
-                } catch (Exception $e) {
-                    return response()->json(['message' => $e->getMessage()], 500);
-                }
-                
-            }
-
-            // 🪙 Points logic
-            $client = Client::find($request->client_id);
-            $used_points = $request->used_points ?? 0;
-            $discount_from_points = $request->discount_from_points ?? 0;
-            $earned_points = 0;
-
-            if ($client && ($client->is_royalty_eligible == 1 || $client->is_royalty_eligible || $client->is_royalty_eligible === 1)) {
-
-                // Deduct used points if valid
-                if ($used_points > 0 && $client->points >= $used_points) {
-                    $client->decrement('points',  $used_points);
-                }
-
-                 // Earn points
-                $earned_points = $total_points_earned;
-
-                $client->increment('points', $earned_points);
-
-                $order_used_points = $used_points;
-                $order_earned_points = $earned_points;
-                $order_discount_from_points = $discount_from_points;
-            } else {
-                $order_used_points = 0;
-                $order_earned_points = 0;
-                $order_discount_from_points = 0;
-            }
-
-            $order->update([
-                'used_points'           => $order_used_points,
-                'earned_points'         => $order_earned_points,
-                'discount_from_points'  => $order_discount_from_points,
-            ]);
-
-
+           $this->process_single_sale($request->all());
         }, 10);
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Store multiple sales at once.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store_bulk(Request $request)
+    {
+        $this->authorizeForUser($request->user('api'), 'create', Sale::class);
+
+        $sales = $request->input('sales');
+
+        if (!$sales || !is_array($sales)) {
+            return response()->json(['success' => false, 'message' => 'No sales data provided'], 400);
+        }
+
+        \DB::transaction(function () use ($sales) {
+            foreach ($sales as $sale_data) {
+                $this->process_single_sale($sale_data);
+            }
+        }, 10);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Process logic for a single sale.
+     *
+     * @param  array  $data
+     * @return void
+     */
+    private function process_single_sale(array $data)
+    {
+        $helpers = new helpers();
+        $order = new Sale;
+
+        $order->is_pos = 0;
+        $order->date = $data['date'];
+        $order->time = now()->toTimeString();
+        $order->Ref = $this->getNumberOrder();
+        $order->client_id = $data['client_id'];
+        $order->GrandTotal = $data['GrandTotal'];
+        $order->warehouse_id = $data['warehouse_id'];
+        $order->tax_rate = isset($data['tax_rate']) ? $data['tax_rate'] : 0;
+        $order->TaxNet = isset($data['TaxNet']) ? $data['TaxNet'] : 0;
+        $order->discount = isset($data['discount']) ? $data['discount'] : 0;
+        $order->shipping = isset($data['shipping']) ? $data['shipping'] : 0;
+        $order->statut = $data['statut'];
+        $order->payment_statut = 'unpaid';
+        $order->notes = isset($data['notes']) ? $data['notes'] : null;
+        $order->transporter_name = isset($data['transporter_name']) ? $data['transporter_name'] : null;
+        $order->lr_number = isset($data['lr_number']) ? $data['lr_number'] : null;
+        $order->user_id = Auth::user()->id;
+        $order->save();
+
+        $details = $data['details'];
+        $orderDetails = [];
+        $total_points_earned = 0;
+        foreach ($details as $key => $value) {
+
+            $product = Product::find($value['product_id'] ?? null);
+            $unit = Unit::where('id', $value['sale_unit_id'] ?? null)->first();
+            $total_points_earned += ($value['quantity'] ?? 0) * ($product ? $product->points : 0);
+
+            $orderDetails[] = [
+                'date'         => $data['date'],
+                'sale_id'      => $order->id,
+                'sale_unit_id' => $value['sale_unit_id'] ?? null,
+                'quantity'     => $value['quantity'] ?? 0,
+                'price'        => $value['Unit_price'] ?? 0,
+                'TaxNet'       => $value['tax_percent'] ?? 0,
+                'tax_method'   => $value['tax_method'] ?? '1',
+                'discount'     => $value['discount'] ?? 0,
+                'discount_method'    => $value['discount_Method'] ?? '1',
+                'product_id'         => $value['product_id'] ?? null,
+                'product_variant_id' => $value['product_variant_id'] ?? null,
+                'total'              => $value['subtotal'] ?? 0,
+                'imei_number'        => $value['imei_number'] ?? '',
+            ];
+
+
+            if ($order->statut == "completed") {
+                if ($value['product_variant_id'] !== null && $value['product_variant_id'] !== '') {
+                    $product_warehouse = product_warehouse::where('deleted_at', '=', null)
+                        ->where('warehouse_id', $order->warehouse_id)
+                        ->where('product_id', $value['product_id'])
+                        ->where('product_variant_id', $value['product_variant_id'])
+                        ->first();
+
+                    if ($unit) {
+                        if (!$product_warehouse) {
+                            $product_warehouse = new product_warehouse();
+                            $product_warehouse->warehouse_id = $order->warehouse_id;
+                            $product_warehouse->product_id = $value['product_id'];
+                            $product_warehouse->product_variant_id = $value['product_variant_id'];
+                            $product_warehouse->qte = 0;
+                            $product_warehouse->manage_stock = 1;
+                        }
+
+                        if ($unit->operator == '/') {
+                            $product_warehouse->qte -= $value['quantity'] / $unit->operator_value;
+                        } else {
+                            $product_warehouse->qte -= $value['quantity'] * $unit->operator_value;
+                        }
+                        $product_warehouse->save();
+                    }
+
+                } else {
+                    $product_warehouse = product_warehouse::where('deleted_at', '=', null)
+                        ->where('warehouse_id', $order->warehouse_id)
+                        ->where('product_id', $value['product_id'])
+                        ->first();
+
+                    if ($unit) {
+                        if (!$product_warehouse) {
+                            $product_warehouse = new product_warehouse();
+                            $product_warehouse->warehouse_id = $order->warehouse_id;
+                            $product_warehouse->product_id = $value['product_id'];
+                            $product_warehouse->product_variant_id = null;
+                            $product_warehouse->qte = 0;
+                            $product_warehouse->manage_stock = 1;
+                        }
+
+                        if ($unit->operator == '/') {
+                            $product_warehouse->qte -= $value['quantity'] / $unit->operator_value;
+                        } else {
+                            $product_warehouse->qte -= $value['quantity'] * $unit->operator_value;
+                        }
+                        $product_warehouse->save();
+                    }
+                }
+            }
+        }
+        SaleDetail::insert($orderDetails);
+
+        if (isset($data['payment']) && $data['payment']['status'] != 'pending') {
+            $sale = Sale::findOrFail($order->id);
+            
+            try {
+
+                $amount = isset($data['amount']) ? $data['amount'] : 0;
+                $total_paid = $sale->paid_amount + $amount;
+                $due = $sale->GrandTotal - $total_paid;
+                
+                if ($due <= 0.0) {
+                    $payment_statut = 'paid';
+                } else if ($due != $sale->GrandTotal) {
+                    $payment_statut = 'partial';
+                } else {
+                    $payment_statut = 'unpaid';
+                }
+                
+                if($amount > 0){
+                    if ($data['payment']['payment_method_id'] == 1 || $data['payment']['payment_method_id'] == '1') {
+                        $Client = Client::whereId($data['client_id'])->first();
+                        Stripe\Stripe::setApiKey(config('app.STRIPE_SECRET'));
+
+                        // Check if the payment record exists
+                        $PaymentWithCreditCard = PaymentWithCreditCard::where('customer_id', $data['client_id'])->first();
+                        if (!$PaymentWithCreditCard) {
+
+                            // Create a new customer and charge the customer with a new credit card
+                            $customer = \Stripe\Customer::create([
+                                'source' => $data['token'],
+                                'email'  => $Client->email,
+                                'name'   => $Client->name,
+                            ]);
+
+                            // Charge the Customer instead of the card:
+                            $charge = \Stripe\Charge::create([
+                                'amount'   => $amount * 100,
+                                'currency' => 'usd',
+                                'customer' => $customer->id,
+                            ]);
+                            $PaymentCard['customer_stripe_id'] = $customer->id;
+
+                        // Check if the payment record not exists
+                        } else {
+
+                             // Retrieve the customer ID and card ID
+                            $customer_id = $PaymentWithCreditCard->customer_stripe_id;
+                            $card_id = $data['card_id'];
+
+                            // Charge the customer with the new credit card or the selected card
+                            if (isset($data['is_new_credit_card']) && ($data['is_new_credit_card'] || $data['is_new_credit_card'] == 'true' || $data['is_new_credit_card'] === 1)) {
+                                // Retrieve the customer
+                                $customer = \Stripe\Customer::retrieve($customer_id);
+
+                                // Create New Source
+                                $card = \Stripe\Customer::createSource(
+                                    $customer_id,
+                                    [
+                                      'source' => $data['token'],
+                                    ]
+                                  );
+
+                                $charge = \Stripe\Charge::create([
+                                    'amount'   => $amount * 100,
+                                    'currency' => 'usd',
+                                    'customer' => $customer_id,
+                                    'source'   => $card->id,
+                                ]);
+                                $PaymentCard['customer_stripe_id'] = $customer_id;
+
+                            } else {
+                                $charge = \Stripe\Charge::create([
+                                    'amount'   => $amount * 100,
+                                    'currency' => 'usd',
+                                    'customer' => $customer_id,
+                                    'source'   => $card_id,
+                                ]);
+                                $PaymentCard['customer_stripe_id'] = $customer_id;
+                            }
+                        }
+
+                        $PaymentSale            = new PaymentSale();
+                        $PaymentSale->sale_id   = $order->id;
+                        $PaymentSale->Ref       = app('App\Http\Controllers\PaymentSalesController')->getNumberOrder();
+                        $PaymentSale->date      = Carbon::now();
+                        $PaymentSale->payment_method_id = $data['payment']['payment_method_id'];
+                        $PaymentSale->montant   = $amount;
+                        $PaymentSale->change    = isset($data['change']) ? $data['change'] : 0;
+                        $PaymentSale->notes     = NULL;
+                        $PaymentSale->user_id   = Auth::user()->id;
+                        $PaymentSale->account_id   = (isset($data['payment']['account_id']) && $data['payment']['account_id'])?$data['payment']['account_id']:NULL;
+                        $PaymentSale->save();
+
+                        $account = Account::where('id', $PaymentSale->account_id)->exists();
+
+                        if ($account) {
+                            // Account exists, perform the update
+                            $account = Account::find($PaymentSale->account_id);
+                            $account->update([
+                                'balance' => $account->balance + $amount,
+                            ]);
+                        }
+
+                        $sale->update([
+                            'paid_amount'    => $total_paid,
+                            'payment_statut' => $payment_statut,
+                        ]);
+
+                        $PaymentCard['customer_id'] = $data['client_id'];
+                        $PaymentCard['payment_id']  = $PaymentSale->id;
+                        $PaymentCard['charge_id']   = $charge->id;
+                        PaymentWithCreditCard::create($PaymentCard);
+
+                        // Paying Method Cash
+                    } else {
+
+                        PaymentSale::create([
+                            'sale_id' => $order->id,
+                            'Ref' => app('App\Http\Controllers\PaymentSalesController')->getNumberOrder(),
+                            'date' => Carbon::now(),
+                            'account_id' => (isset($data['payment']['account_id']) && $data['payment']['account_id'])?$data['payment']['account_id']:NULL,
+                            'payment_method_id' => $data['payment']['payment_method_id'],
+                            'montant' => $amount,
+                            'change' => isset($data['change']) ? $data['change'] : 0,
+                            'notes' => NULL,
+                            'user_id' => Auth::user()->id,
+                        ]);
+
+                        $account_id = (isset($data['payment']['account_id']) && $data['payment']['account_id'])?$data['payment']['account_id']:NULL;
+                        $account = Account::where('id', $account_id)->exists();
+
+                        if ($account) {
+                            // Account exists, perform the update
+                            $account = Account::find($account_id);
+                            $account->update([
+                                'balance' => $account->balance + $amount,
+                            ]);
+                        }
+
+                        $sale->update([
+                            'paid_amount' => $total_paid,
+                            'payment_statut' => $payment_statut,
+                        ]);
+                    }
+
+                }
+            } catch (Exception $e) {
+                throw $e;
+            }
+            
+        }
+
+        // 🪙 Points logic
+        $client = Client::find($data['client_id']);
+        $used_points = $data['used_points'] ?? 0;
+        $earned_points = 0;
+
+        if ($client && ($client->is_royalty_eligible == 1 || $client->is_royalty_eligible || $client->is_royalty_eligible === 1)) {
+
+            // Deduct used points if valid
+            if ($used_points > 0 && $client->points >= $used_points) {
+                $client->decrement('points',  $used_points);
+            }
+
+             // Earn points
+            $earned_points = $total_points_earned;
+
+            $client->increment('points', $earned_points);
+
+            $order_used_points = $used_points;
+            $order_earned_points = $earned_points;
+            $order_discount_from_points = isset($data['discount_from_points']) ? $data['discount_from_points'] : 0;
+        } else {
+            $order_used_points = 0;
+            $order_earned_points = 0;
+            $order_discount_from_points = 0;
+        }
+
+        $order->update([
+            'used_points'           => $order_used_points,
+            'earned_points'         => $order_earned_points,
+            'discount_from_points'  => $order_discount_from_points,
+        ]);
     }
 
 
@@ -723,8 +783,8 @@ class SalesController extends BaseController
                     'shipping'     => $request['shipping'],
                     'GrandTotal'   => $request['GrandTotal'],
                     'payment_statut' => $payment_statut,
-                    'used_points'    => $new_used,
-                    'earned_points'  => $new_earned,
+                    'used_points'    => isset($new_used) ? $new_used : 0,
+                    'earned_points'  => isset($new_earned) ? $new_earned : 0,
                     'discount_from_points'  => $request['discount_from_points'],
                 ]);
             }
@@ -1260,34 +1320,25 @@ class SalesController extends BaseController
 
     public function getNumberOrder()
     {
-        // Get the last sale with a reference that starts with 'SL_'
-        $last = DB::table('sales')
-            ->where('Ref', 'like', 'SL_%')
-            ->latest('id')
-            ->first();
-    
-        if ($last) {
-            $item = $last->Ref;
-            $nwMsg = explode("_", $item);
-    
-            // Ensure valid structure before processing
-            if (isset($nwMsg[1]) && is_numeric($nwMsg[1])) {
-                $inMsg = $nwMsg[1] + 1;
-                $code = $nwMsg[0] . '_' . $inMsg;
-            } else {
-                $code = 'SL_1111'; // Fallback if reference is corrupted
+        $existing = DB::table('sales')->whereNull('deleted_at')->pluck('Ref')->toArray();
+        $used = [];
+        foreach ($existing as $ref) {
+            if (preg_match('/^S(\d+)$/i', $ref, $matches)) {
+                $used[] = intval($matches[1]);
             }
-        } else {
-            $code = 'SL_1111';
         }
-    
-        return $code;
+        $n = 1;
+        while (in_array($n, $used)) {
+            $n++;
+        }
+        return 'S' . $n;
     }
 
     //------------- SALE PDF -----------\\
 
     public function Sale_PDF(Request $request, $id)
     {
+        set_time_limit(0); // No limit for PDF generation
 
         $details = array();
         $helpers = new helpers();
@@ -1310,6 +1361,7 @@ class SalesController extends BaseController
         $sale['paid_amount'] = number_format($sale_data->paid_amount, 2, '.', '');
         $sale['due'] = number_format($sale['GrandTotal'] - $sale['paid_amount'], 2, '.', '');
         $sale['payment_status'] = $sale_data->payment_statut;
+        $sale['notes'] = $sale_data->notes;
 
         $detail_id = 0;
         foreach ($sale_data['details'] as $detail) {
@@ -1473,6 +1525,8 @@ class SalesController extends BaseController
               $sale['warehouse_id'] = '';
           }
   
+          $sale['id'] = $Sale_data->id;
+          $sale['Ref'] = $Sale_data->Ref;
           $sale['date'] = $Sale_data->date;
           $sale['tax_rate'] = $Sale_data->tax_rate;
           $sale['TaxNet'] = $Sale_data->TaxNet;
@@ -1481,6 +1535,8 @@ class SalesController extends BaseController
           $sale['shipping'] = $Sale_data->shipping;
           $sale['statut'] = $Sale_data->statut;
           $sale['notes'] = $Sale_data->notes;
+          $sale['transporter_name'] = $Sale_data->transporter_name;
+          $sale['lr_number'] = $Sale_data->lr_number;
   
           $detail_id = 0;
           foreach ($Sale_data['details'] as $detail) {
@@ -1578,11 +1634,11 @@ class SalesController extends BaseController
                 if ($detail->tax_method == '1') {
                     $data['Net_price'] = $detail->price - $data['DiscountNet'];
                     $data['taxe'] = $tax_price;
-                    $data['subtotal'] = ($data['Net_price'] * $data['quantity']) + ($tax_price * $data['quantity']);
+                    $data['subtotal'] = $detail->total;
                 } else {
                     $data['Net_price'] = ($detail->price - $data['DiscountNet'] - $tax_price);
                     $data['taxe'] = $detail->price - $data['Net_price'] - $data['DiscountNet'];
-                    $data['subtotal'] = ($data['Net_price'] * $data['quantity']) + ($tax_price * $data['quantity']);
+                    $data['subtotal'] = $detail->total;
                 }
 
 
@@ -1766,7 +1822,7 @@ class SalesController extends BaseController
            $warehouses_id = UserWarehouse::where('user_id', $user_auth->id)->pluck('warehouse_id')->toArray();
            $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name']);
        }
-         
+          
         $clients = Client::where('deleted_at', '=', null)->get(['id', 'name', 'preferred_transport']);
         $transporters = Transporter::all(['id', 'name']);
 
@@ -2176,7 +2232,7 @@ class SalesController extends BaseController
          $message_text = str_replace('{paid_amount}', $paid_amount, $message_text);
          $message_text = str_replace('{due_amount}', $due_amount, $message_text);
  
-
+ 
         return response()->json(['message' => $message_text , 'phone' => $receiverNumber ]);
 
 

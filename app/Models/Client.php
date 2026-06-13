@@ -4,10 +4,91 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Client extends Model
 {
     use SoftDeletes;
+
+    public static $isSyncing = false;
+
+    protected static function booted()
+    {
+        static::saved(function ($client) {
+            if (static::$isSyncing || Provider::$isSyncing) {
+                return;
+            }
+
+            static::$isSyncing = true;
+            try {
+                $originalName = $client->getOriginal('name') ?: $client->name;
+                $originalCode = $client->getOriginal('code') ?: $client->code;
+
+                $provider = Provider::where(function ($q) use ($originalName, $originalCode) {
+                    $q->where('name', $originalName)
+                      ->orWhere('code', $originalCode);
+                })->first();
+
+                if (!$provider) {
+                    $provider = new Provider();
+                }
+
+                $provider->fill([
+                    'name' => $client->name,
+                    'code' => $client->code,
+                    'email' => $client->email,
+                    'phone' => $client->phone,
+                    'country' => $client->country,
+                    'city' => $client->city,
+                    'adresse' => $client->adresse,
+                    'tax_number' => $client->tax_number,
+                    'gstin' => $client->gstin,
+                    'pan' => $client->pan,
+                    'address_line_1' => $client->address_line_1,
+                    'address_line_2' => $client->address_line_2,
+                    'address_line_3' => $client->address_line_3,
+                    'state' => $client->state,
+                    'source_system' => $client->source_system,
+                ]);
+                $provider->save();
+            } finally {
+                static::$isSyncing = false;
+            }
+        });
+
+        static::deleted(function ($client) {
+            if (static::$isSyncing || Provider::$isSyncing) {
+                return;
+            }
+
+            static::$isSyncing = true;
+            try {
+                $originalName = $client->getOriginal('name') ?: $client->name;
+                $provider = Provider::where('name', $originalName)->first();
+                if ($provider) {
+                    $provider->delete();
+                }
+            } finally {
+                static::$isSyncing = false;
+            }
+        });
+
+        static::restored(function ($client) {
+            if (static::$isSyncing || Provider::$isSyncing) {
+                return;
+            }
+
+            static::$isSyncing = true;
+            try {
+                $originalName = $client->getOriginal('name') ?: $client->name;
+                // In SQLite, if we soft-deleted the provider directly using DB::table, 
+                // we restore it by setting deleted_at = null
+                DB::table('providers')->where('name', $originalName)->update(['deleted_at' => null]);
+            } finally {
+                static::$isSyncing = false;
+            }
+        });
+    }
 
     protected $fillable = [
         'business_company_id',

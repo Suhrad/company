@@ -9,6 +9,7 @@ use App\Models\ExpenseCategory;
 use App\Models\PaymentMethod;
 use App\Models\Role;
 use App\Models\Warehouse;
+use App\Models\Provider;
 use App\utils\helpers;
 use Carbon\Carbon;
 use DB;
@@ -40,7 +41,7 @@ class ExpensesController extends BaseController
         $data = array();
 
         // Check If User Has Permission View  All Records
-        $Expenses = Expense::with('expense_category', 'warehouse', 'account')
+        $Expenses = Expense::with('expense_category', 'warehouse', 'account', 'provider')
             ->where('deleted_at', '=', null)
             ->where(function ($query) use ($view_records) {
                 if (!$view_records) {
@@ -96,8 +97,10 @@ class ExpensesController extends BaseController
             $item['amount'] = $Expense->amount;
             $item['payment_method']  = $Expense['payment_method']?$Expense['payment_method']->name:'---';
             $item['warehouse_name'] = $Expense['warehouse']->name;
-            $item['category_name'] = $Expense['expense_category']->name;
+            $item['category_name'] = $Expense['expense_category'] ? $Expense['expense_category']->name : '---';
             $item['account_name'] = $Expense['account']?$Expense['account']->account_name:'N/D';
+            $item['provider_name'] = $Expense['provider'] ? $Expense['provider']->name : '---';
+            $item['provider_with_details'] = $item['provider_name'] . "\n" . $Expense->details;
 
             $data[] = $item;
         }
@@ -122,6 +125,7 @@ class ExpensesController extends BaseController
             'accounts' => $accounts,
             'totalRows' => $totalRows,
             'payment_methods' => $payment_methods,
+            'suppliers' => $helpers->getUnifiedSuppliers(),
         ]);
 
     }
@@ -136,21 +140,19 @@ class ExpensesController extends BaseController
             request()->validate([
                 'expense.date' => 'required',
                 'expense.warehouse_id' => 'required',
-                'expense.category_id' => 'required',
-                'expense.details' => 'required',
                 'expense.amount' => 'required',
-                'expense.payment_method_id' => 'required',
             ]);
 
             Expense::create([
                 'user_id' => Auth::user()->id,
                 'date' => $request['expense']['date'],
                 'Ref' => $this->getNumberOrder(),
-                'payment_method_id' => $request['expense']['payment_method_id'],
+                'payment_method_id' => $request['expense']['payment_method_id'] ?? null,
                 'warehouse_id' => $request['expense']['warehouse_id'],
-                'expense_category_id' => $request['expense']['category_id'],
-                'account_id' => $request['expense']['account_id'],
-                'details' => $request['expense']['details'],
+                'expense_category_id' => $request['expense']['category_id'] ?? null,
+                'account_id' => $request['expense']['account_id'] ?? null,
+                'provider_id' => $request['expense']['provider_id'] ?? null,
+                'details' => $request['expense']['details'] ?? null,
                 'amount' => $request['expense']['amount'],
             ]);
 
@@ -194,10 +196,7 @@ class ExpensesController extends BaseController
             request()->validate([
                 'expense.date' => 'required',
                 'expense.warehouse_id' => 'required',
-                'expense.category_id' => 'required',
-                'expense.details' => 'required',
                 'expense.amount' => 'required',
-                'expense.payment_method_id' => 'required',
             ]);
 
             $account = Account::find($expense->account_id);
@@ -210,11 +209,12 @@ class ExpensesController extends BaseController
 
             Expense::whereId($id)->update([
                 'date' => $request['expense']['date'],
-                'payment_method_id' => $request['expense']['payment_method_id'],
+                'payment_method_id' => $request['expense']['payment_method_id'] ?? null,
                 'warehouse_id' => $request['expense']['warehouse_id'],
-                'expense_category_id' => $request['expense']['category_id'],
-                'account_id' => $request['expense']['account_id']?$request['expense']['account_id']:NULL,
-                'details' => $request['expense']['details'],
+                'expense_category_id' => $request['expense']['category_id'] ?? null,
+                'account_id' => $request['expense']['account_id'] ?? null,
+                'provider_id' => $request['expense']['provider_id'] ?? null,
+                'details' => $request['expense']['details'] ?? null,
                 'amount' => $request['expense']['amount'],
             ]);
 
@@ -336,11 +336,13 @@ class ExpensesController extends BaseController
         $accounts = Account::where('deleted_at', '=', null)->get(['id', 'account_name']);
         $payment_methods = PaymentMethod::where('deleted_at', '=', null)->get(['id', 'name']);
 
+        $helpers = new helpers();
         return response()->json([
             'Expenses_category' => $Expenses_category,
             'warehouses' => $warehouses,
             'accounts' => $accounts,
             'payment_methods' => $payment_methods,
+            'suppliers' => $helpers->getUnifiedSuppliers(),
         ]);
     }
 
@@ -402,6 +404,7 @@ class ExpensesController extends BaseController
         $data['amount'] = $Expense->amount;
         $data['details'] = $Expense->details;
         $data['payment_method_id'] = $Expense->payment_method_id;
+        $data['provider_id'] = $Expense->provider_id;
 
         //get warehouses assigned to user
         $user_auth = auth()->user();
@@ -416,12 +419,14 @@ class ExpensesController extends BaseController
         $accounts = Account::where('deleted_at', '=', null)->get(['id', 'account_name']);
         $payment_methods = PaymentMethod::where('deleted_at', '=', null)->get(['id', 'name']);
 
+        $helpers = new helpers();
         return response()->json([
             'expense' => $data,
             'expense_Category' => $Expenses_category,
             'warehouses' => $warehouses,
             'accounts' => $accounts,
             'payment_methods' => $payment_methods,
+            'suppliers' => $helpers->getUnifiedSuppliers(),
         ]);
     }
 

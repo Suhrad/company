@@ -38,10 +38,10 @@ Route::get('password/find/{token}', 'PasswordResetController@find');
 
 
 
-Route::middleware(['web','auth:web','Is_Active'])->group(function () {
-    Route::get('/admin/store/settings', [AdminStoreSettings::class, 'show']);
-    Route::post('/admin/store/settings', [AdminStoreSettings::class, 'update']);
-});
+// Route::middleware(['web','auth:web','Is_Active'])->group(function () {
+//     Route::get('/admin/store/settings', [AdminStoreSettings::class, 'show']);
+//     Route::post('/admin/store/settings', [AdminStoreSettings::class, 'update']);
+// });
 
 
 
@@ -53,75 +53,75 @@ $installed = Storage::disk('public')->exists('installed');
 if ($installed === true) {
 
 
-    Route::prefix('online_store')->group(function () {
+    // Route::prefix('online_store')->group(function () {
 
 
-        Route::get('/lang/{locale}', function ($locale) {
-            $supported = ['en','fr','es','ar'];
+    //     Route::get('/lang/{locale}', function ($locale) {
+    //         $supported = ['en','fr','es','ar'];
 
-            // Use provided locale if supported, otherwise fallback to 'en'
-            $chosen = in_array($locale, $supported, true) ? $locale : 'en';
+    //         // Use provided locale if supported, otherwise fallback to 'en'
+    //         $chosen = in_array($locale, $supported, true) ? $locale : 'en';
 
-            // Store in session
-            session(['locale' => $chosen]);
+    //         // Store in session
+    //         session(['locale' => $chosen]);
 
-            // Optionally persist for a year via cookie
-            Cookie::queue('locale', $chosen, 60 * 24 * 365, '/');
+    //         // Optionally persist for a year via cookie
+    //         Cookie::queue('locale', $chosen, 60 * 24 * 365, '/');
 
-            return back();
-        })->name('lang.switch');
+    //         return back();
+    //     })->name('lang.switch');
 
-        Route::get('/', [StoreFrontController::class, 'index'])->name('store.index');
-        Route::get('/shop', [StoreFrontController::class, 'shop'])->name('store.shop');
-        Route::get('/contact', [StoreFrontController::class, 'contact'])->name('store.contact');
-        Route::post('/contact', [StoreFrontController::class, 'sendContact'])->name('store.contact.send');
-        Route::post('/store/orders', [CheckoutController::class, 'store'])->name('store.orders.store');
-        Route::get('/collections/{slug}', [StoreFrontController::class, 'collection'])->name('store.collection.show');
+    //     Route::get('/', [StoreFrontController::class, 'index'])->name('store.index');
+    //     Route::get('/shop', [StoreFrontController::class, 'shop'])->name('store.shop');
+    //     Route::get('/contact', [StoreFrontController::class, 'contact'])->name('store.contact');
+    //     Route::post('/contact', [StoreFrontController::class, 'sendContact'])->name('store.contact.send');
+    //     Route::post('/store/orders', [CheckoutController::class, 'store'])->name('store.orders.store');
+    //     Route::get('/collections/{slug}', [StoreFrontController::class, 'collection'])->name('store.collection.show');
 
-        Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe'])->name('newsletter.subscribe');
-        Route::post('/contact/send', [MessageController::class, 'store'])->name('store.contact.send');
+    //     Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe'])->name('newsletter.subscribe');
+    //     Route::post('/contact/send', [MessageController::class, 'store'])->name('store.contact.send');
 
-        // Account pages (require login on 'store' guard)
-        Route::middleware(['web', 'auth:store'])->group(function () {
-            Route::view('/checkout', 'store.checkout')->name('checkout');
-            Route::view('/thank-you', 'store.thank-you')->name('store.thankyou');
+    //     // Account pages (require login on 'store' guard)
+    //     Route::middleware(['web', 'auth:store'])->group(function () {
+    //         Route::view('/checkout', 'store.checkout')->name('checkout');
+    //         Route::view('/thank-you', 'store.thank-you')->name('store.thankyou');
 
 
-            Route::get('/account', [AccountPagesController::class, 'account'])->name('account');
+    //         Route::get('/account', [AccountPagesController::class, 'account'])->name('account');
 
-            Route::put('/account', [AccountPagesController::class, 'update'])->name('account.update');
+    //         Route::put('/account', [AccountPagesController::class, 'update'])->name('account.update');
 
-            Route::get('/account/orders', [AccountPagesController::class, 'orders'])
-                ->name('account.orders');
+    //         Route::get('/account/orders', [AccountPagesController::class, 'orders'])
+    //             ->name('account.orders');
 
-            Route::get('/account/orders/{id}', function ($id) {
-                // $s is likely shared via view composer; if not, fetch StoreSetting here
-                return view('store.order-show', ['id' => $id]);
-            })->name('account.order.show');
+    //         Route::get('/account/orders/{id}', function ($id) {
+    //             // $s is likely shared via view composer; if not, fetch StoreSetting here
+    //             return view('store.order-show', ['id' => $id]);
+    //         })->name('account.order.show');
 
-            // Customer's own orders (JSON for the account orders table)
-            Route::get('/my/orders', [MyOrdersApiController::class, 'index'])
-                ->name('my_orders.index');
-            // (Optional) details endpoint if you add a “view” drawer/page:
-            Route::get('/my/orders/{id}', [MyOrdersApiController::class, 'show'])
-                ->name('my_orders.show');
-        });
+    //         // Customer's own orders (JSON for the account orders table)
+    //         Route::get('/my/orders', [MyOrdersApiController::class, 'index'])
+    //             ->name('my_orders.index');
+    //         // (Optional) details endpoint if you add a “view” drawer/page:
+    //         Route::get('/my/orders/{id}', [MyOrdersApiController::class, 'show'])
+    //             ->name('my_orders.show');
+    //     });
 
-        // Auth pages (only for guests of 'store' guard)
-        Route::middleware('guest:store')->group(function () {
-            Route::get('/login', [StoreAuthController::class, 'showLogin'])->name('store.login.show');
-            Route::post('/login', [StoreAuthController::class, 'login'])->name('store.login');
+    //     // Auth pages (only for guests of 'store' guard)
+    //     Route::middleware('guest:store')->group(function () {
+    //         Route::get('/login', [StoreAuthController::class, 'showLogin'])->name('store.login.show');
+    //         Route::post('/login', [StoreAuthController::class, 'login'])->name('store.login');
 
-            Route::get('/register', [StoreAuthController::class, 'showRegister'])->name('store.register.show');
-            Route::post('/register', [StoreAuthController::class, 'register'])->name('store.register');
+    //         Route::get('/register', [StoreAuthController::class, 'showRegister'])->name('store.register.show');
+    //         Route::post('/register', [StoreAuthController::class, 'register'])->name('store.register');
 
-            });
+    //         });
 
-        // Logout (must be logged in on 'store')
-        Route::post('/logout', [StoreAuthController::class, 'logout'])
-            ->middleware('auth:store')->name('store.logout');
+    //     // Logout (must be logged in on 'store')
+    //     Route::post('/logout', [StoreAuthController::class, 'logout'])
+    //         ->middleware('auth:store')->name('store.logout');
 
-    });
+    // });
 
 
 } else {
@@ -208,14 +208,9 @@ if ($installed === false) {
 
 Route::group(['middleware' => ['web', 'auth:web', 'Is_Active']], function () {
 
-    Route::get('/login', function () {
-        $installed = Storage::disk('public')->exists('installed');
-        if ($installed === false) {
-            return redirect('/setup');
-        } else {
-            return redirect('/login');
-        }
-    });
+
+
+    Route::get("report/ledger_warehouse_pdf", "ReportController@download_warehouse_ledger_pdf");
 
 
     Route::get('/{vue?}',
@@ -227,7 +222,7 @@ Route::group(['middleware' => ['web', 'auth:web', 'Is_Active']], function () {
         } else {
             return view('layouts.master');
         }
-    })->where('vue', '^(?!api|setup|update|password|online_store).*$');
+    })->where('vue', '^(?!api|setup|update|password|online_store|report|login|logout|register).*$');
  
 });
    

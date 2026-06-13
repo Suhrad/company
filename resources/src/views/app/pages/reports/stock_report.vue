@@ -145,60 +145,31 @@ export default {
 
      //----------------------------------- Sales PDF ------------------------------\\
     stock_report_PDF() {
-      var self = this;
-      let pdf = new jsPDF("p", "pt");
-
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
-      
-      let columns = [
-        { title: self.$t("ProductCode"), dataKey: "code" },
-        { title: self.$t("ProductName"), dataKey: "name" },
-        { title: self.$t("Categorie"), dataKey: "category" },
-        { title: self.$t("Quantity"), dataKey: "quantity" },
-      ];
-
-        // Calculate totals
-        let totalGrandTotal = self.reports.reduce((sum, report) => sum + parseFloat(report.quantity || 0), 0);
-        
-        let footer = [{
-          code: self.$t("Total"),
-          name: '',
-          category: '',
-          quantity: `${totalGrandTotal.toFixed(2)}`,
-          
-        }];
-
-      pdf.autoTable({
-             columns: columns,
-             body: self.reports,
-             foot: footer,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Stock report", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
-             footStyles: {
-               fillColor: [230, 230, 230], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
-      });
-
-      pdf.save("Stock_report.pdf");
-
+      // Start the progress bar.
+      NProgress.start();
+      NProgress.set(0.1);
+     
+       axios
+        .get("report/stock_pdf?warehouse_id=" + this.warehouse_id + "&search=" + this.search, {
+          responseType: "blob", // important
+          headers: {
+            "Content-Type": "application/json"
+          }
+        })
+        .then(response => {
+          const url = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", "Stock_Report.pdf");
+          document.body.appendChild(link);
+          link.click();
+          // Complete the animation of the progress bar.
+          setTimeout(() => NProgress.done(), 500);
+        })
+        .catch(() => {
+          // Complete the animation of the progress bar.
+          setTimeout(() => NProgress.done(), 500);
+        });
     },
 
     //---- update Params Table

@@ -1,4 +1,5 @@
 import store from "./store";
+import axios from 'axios';
 
 import Vue from "vue";
 import router, { setupRouterGuards } from "./router";
@@ -99,20 +100,28 @@ window.axios.defaults.baseURL = '/api/';
 window.axios.defaults.withCredentials = true;
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
+const stockyToken = VueCookies.get('Stocky_token');
+if (stockyToken) {
+  window.auth.setAuthToken(stockyToken);
+}
+
 axios.interceptors.response.use((response) => {
 
   return response;
 }, (error) => {
   if (error.response && error.response.data) {
     if (error.response.status === 401) {
-      window.location.href='/login';
+      // Only redirect to login if not already on the login page (prevents redirect loops)
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href='/login';
+      }
     }
 
     if (error.response.status === 404) {
-      router.push({ name: 'NotFound' });
+      router.push({ name: 'NotFound' }).catch(() => {});
     }
     if (error.response.status === 403) {
-      router.push({ name: 'not_authorize' });
+      router.push({ name: 'not_authorize' }).catch(() => {});
     }
 
     return Promise.reject(error.response.data);

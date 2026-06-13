@@ -28,3 +28,12 @@ yarn-error.log
 !/public/images/clients/.gitkeep
 !/public/images/providers/.gitkeep
 !/public/images/settings/.gitkeep
+/scratch/
+/*.log
+/routes_list*.txt
+/scratch_*.txt
+/scratch_*.php
+/test*.php
+/vendor 3/
+/routes/api.php.patch
+/start.command

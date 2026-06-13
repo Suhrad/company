@@ -84,13 +84,13 @@
         </b-col>
 
         <b-col lg="3" md="6" sm="12">
-          <router-link tag="a" class to="/app/sale_return/list">
+          <router-link tag="a" class to="/app/products/list">
             <b-card class="card-icon-bg card-icon-bg-primary o-hidden mb-30 text-center">
-              <i class="i-Right-4"></i>
+              <i class="i-Factory"></i>
               <div class="content">
-                <p class="text-muted mt-2 mb-0">{{$t('SalesReturn')}}</p>
+                <p class="text-muted mt-2 mb-0">Finished Goods Stock</p>
                 <p class="text-primary text-24 line-height-1 mb-2">
-                  {{currentUser.currency}} {{report_today.return_sales?report_today.return_sales:0}}
+                  {{report_today.finished_goods_stock?report_today.finished_goods_stock:0}}
                 </p>
               </div>
             </b-card>
@@ -98,13 +98,13 @@
         </b-col>
 
         <b-col lg="3" md="6" sm="12">
-          <router-link tag="a" class to="/app/purchase_return/list">
+          <router-link tag="a" class to="/app/products/list">
             <b-card class="card-icon-bg card-icon-bg-primary o-hidden mb-30 text-center">
-              <i class="i-Left-4"></i>
+              <i class="i-Library"></i>
               <div class="content">
-                <p class="text-muted mt-2 mb-0">{{$t('PurchasesReturn')}}</p>
+                <p class="text-muted mt-2 mb-0">Raw Materials Stock</p>
                 <p class="text-primary text-24 line-height-1 mb-2">
-                  {{currentUser.currency}} {{report_today.return_purchases?report_today.return_purchases:0}}
+                  {{report_today.raw_materials_stock?report_today.raw_materials_stock:0}} kg
                 </p>
               </div>
             </b-card>

@@ -52,8 +52,8 @@
                      <tr>
                         <td>
                            <div id="comp">{{$setting['CompanyName']}}</div>
-                           <div><strong>Address:</strong>  {{$setting['CompanyAdress']}}</div>
-                           <div><strong>Phone:</strong>  {{$setting['CompanyPhone']}}</div>
+                           @if(!empty($setting['CompanyAdress'])) <div><strong>Address:</strong>  {{$setting['CompanyAdress']}}</div> @endif
+                           @if(!empty($setting['CompanyPhone'])) <div><strong>Phone:</strong>  {{$setting['CompanyPhone']}}</div> @endif
                            <div><strong>Email:</strong>  {{$setting['email']}}</div>
                         </td>
                      </tr>

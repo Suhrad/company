@@ -81,7 +81,7 @@ class DepositsController extends BaseController
             $item['description'] = $Deposit->description;
             $item['amount'] = $Deposit->amount;
             $item['account_name'] = $Deposit['account']?$Deposit['account']->account_name:'N/D';
-            $item['category_name'] = $Deposit['deposit_category']->title;
+            $item['category_name'] = $Deposit['deposit_category'] ? $Deposit['deposit_category']->title : 'N/D';
             $item['client_name'] = $Deposit['client']?$Deposit['client']->name:'---';
             $data[] = $item;
         }
@@ -109,7 +109,6 @@ class DepositsController extends BaseController
         \DB::transaction(function () use ($request) {
             request()->validate([
                 'deposit.date' => 'required',
-                'deposit.category_id' => 'required',
                 'deposit.amount' => 'required',
             ]);
 
@@ -118,7 +117,7 @@ class DepositsController extends BaseController
                 'date' => $request['deposit']['date'],
                 'deposit_ref' => $this->getNumberOrder(),
                 'account_id' => $request['deposit']['account_id'],
-                'deposit_category_id' => $request['deposit']['category_id'],
+                'deposit_category_id' => $request['deposit']['category_id'] ? $request['deposit']['category_id'] : NULL,
                 'client_id' => $request['deposit']['client_id'],
                 'description' => $request['deposit']['description'],
                 'amount' => $request['deposit']['amount'],
@@ -164,7 +163,6 @@ class DepositsController extends BaseController
        
             request()->validate([
                 'deposit.date' => 'required',
-                'deposit.category_id' => 'required',
                 'deposit.amount' => 'required',
             ]);
 
@@ -179,7 +177,7 @@ class DepositsController extends BaseController
             Deposit::whereId($id)->update([
                 'date' => $request['deposit']['date'],
                 'account_id' => $request['deposit']['account_id']?$request['deposit']['account_id']:NULL,
-                'deposit_category_id' => $request['deposit']['category_id'],
+                'deposit_category_id' => $request['deposit']['category_id'] ? $request['deposit']['category_id'] : NULL,
                 'client_id' => $request['deposit']['client_id'],
                 'description' => $request['deposit']['description'],
                 'amount' => $request['deposit']['amount'],

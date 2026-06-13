@@ -171,9 +171,12 @@ class ClientsEcommerceController extends BaseController
                 'password' => $pass,
             ]);
 
-            Client::whereId($id)->update([
-                'email' => $request['email'],
-            ]);
+            $client = Client::find($id);
+            if ($client) {
+                $client->update([
+                    'email' => $request['email'],
+                ]);
+            }
 
         }, 10);
         
@@ -187,9 +190,10 @@ class ClientsEcommerceController extends BaseController
     {
         $this->authorizeForUser($request->user('api'), 'delete', Client::class);
 
-        Client::whereId($id)->update([
-            'deleted_at' => Carbon::now(),
-        ]);
+        $client = Client::find($id);
+        if ($client) {
+            $client->delete();
+        }
         return response()->json(['success' => true]);
     }
 

@@ -39,8 +39,14 @@
             </div>
           </div>
 
-          <div class="ml-auto mb-2">
-            <b-button variant="primary" class="btn-pill mr-2" @click="Payments_Sales(serverParams.page)">
+          <div class="ml-auto mb-2 d-flex align-items-center">
+            <router-link
+              to="/app/receipts/store"
+              class="btn btn-primary btn-sm btn-pill mr-2 d-flex align-items-center"
+            >
+              <i class="i-Add mr-1"></i> Create Receipt
+            </router-link>
+            <b-button variant="primary" size="sm" class="btn-pill mr-2" @click="Payments_Sales(serverParams.page)">
               <i class="i-Reload mr-1"></i> {{$t('Refresh')}}
             </b-button>
             <b-button @click="Payment_PDF" size="sm" variant="outline-success" class="btn-pill mr-2">
@@ -86,6 +92,24 @@
             <span v-if="props.column.field === 'montant'">
               {{ Number(props.row.montant || 0).toLocaleString(undefined,{maximumFractionDigits:2}) }}
             </span>
+            <span v-else-if="props.column.field === 'actions'">
+              <a
+                v-if="currentUserPermissions && currentUserPermissions.includes('payment_sales_edit')"
+                @click="Edit_Payment(props.row)"
+                class="cursor-pointer text-success mr-2"
+                title="Edit"
+              >
+                <i class="i-Pen-2 text-20"></i>
+              </a>
+              <a
+                v-if="currentUserPermissions && currentUserPermissions.includes('payment_sales_delete')"
+                @click="Remove_Payment(props.row.id)"
+                class="cursor-pointer text-danger"
+                title="Delete"
+              >
+                <i class="i-Close text-20"></i>
+              </a>
+            </span>
             <span v-else>
               {{ props.formattedRow[props.column.field] }}
             </span>
@@ -93,6 +117,123 @@
         </vue-good-table>
       </b-card>
     </div>
+
+    <!-- Edit Payment Modal -->
+    <validation-observer ref="Add_payment">
+      <b-modal
+        hide-footer
+        size="lg"
+        id="Add_Payment"
+        :title="$t('EditPayment')"
+      >
+        <b-form @submit.prevent="Submit_Payment">
+          <b-row>
+            <!-- date -->
+            <b-col lg="6" md="12" sm="12">
+              <validation-provider
+                name="date"
+                :rules="{ required: true}"
+                v-slot="validationContext"
+              >
+                <b-form-group :label="$t('date')">
+                  <b-form-input
+                    label="date"
+                    :state="getValidationState(validationContext)"
+                    aria-describedby="date-feedback"
+                    v-model="payment.date"
+                    type="date"
+                  ></b-form-input>
+                  <b-form-invalid-feedback id="date-feedback">{{ validationContext.errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Reference  -->
+            <b-col lg="6" md="12" sm="12">
+              <b-form-group :label="$t('Reference')">
+                <b-form-input
+                  disabled="disabled"
+                  label="Reference"
+                  :placeholder="$t('Reference')"
+                  v-model="payment.Ref"
+                ></b-form-input>
+              </b-form-group>
+            </b-col>
+
+             <!-- Payment choice -->
+             <b-col lg="6" md="12" sm="12">
+              <validation-provider name="Payment choice" :rules="{ required: true}">
+                <b-form-group slot-scope="{ valid, errors }" :label="$t('Paymentchoice')">
+                  <v-select
+                    :class="{'is-invalid': !!errors.length}"
+                    :state="errors[0] ? false : (valid ? true : null)"
+                    v-model="payment.payment_method_id"
+                    :reduce="label => label.value"
+                    :placeholder="$t('PleaseSelect')"
+                    :options="payment_methods.map(pm => ({label: pm.name, value: pm.id}))"
+                  ></v-select>
+                  <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Paying Amount  -->
+            <b-col lg="6" md="12" sm="12">
+              <validation-provider
+                name="Amount"
+                :rules="{ required: true , regex: /^\d*\.?\d*$/}"
+                v-slot="validationContext"
+              >
+                <b-form-group :label="$t('Paying_Amount')">
+                  <b-form-input
+                    label="Amount"
+                    :placeholder="$t('Paying_Amount')"
+                    v-model.number="payment.montant"
+                    :state="getValidationState(validationContext)"
+                    aria-describedby="Amount-feedback"
+                  ></b-form-input>
+                  <b-form-invalid-feedback id="Amount-feedback">{{ validationContext.errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Account -->
+            <b-col lg="6" md="6" sm="12">
+              <validation-provider name="Account">
+                <b-form-group slot-scope="{ valid, errors }" :label="$t('Account')">
+                  <v-select
+                    :class="{'is-invalid': !!errors.length}"
+                    :state="errors[0] ? false : (valid ? true : null)"
+                    v-model="payment.account_id"
+                    :reduce="label => label.value"
+                    :placeholder="$t('Choose_Account')"
+                    :options="accounts.map(acc => ({label: acc.account_name, value: acc.id}))"
+                  />
+                  <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Note -->
+            <b-col lg="6" md="6" sm="12">
+              <b-form-group :label="$t('Note')">
+                <b-form-textarea id="textarea" v-model="payment.notes" rows="3" max-rows="6"></b-form-textarea>
+              </b-form-group>
+            </b-col>
+            <b-col md="12" class="mt-3">
+              <b-button
+                variant="primary"
+                type="submit"
+                :disabled="paymentProcessing"
+              ><i class="i-Yes me-2 font-weight-bold"></i> {{$t('submit')}}</b-button>
+              <div v-once class="typo__p" v-if="paymentProcessing">
+                <div class="spinner sm spinner-primary mt-3"></div>
+              </div>
+            </b-col>
+          </b-row>
+        </b-form>
+      </b-modal>
+    </validation-observer>
 
     <!-- Sidebar Filter -->
     <b-sidebar id="sidebar-right" :title="$t('Filter')" bg-variant="white" right shadow>
@@ -167,6 +308,7 @@
 </template>
 
 <script>
+import { mapGetters } from "vuex";
 import NProgress from "nprogress";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -201,6 +343,20 @@ export default {
       clients: [],
       sales: [],
       payment_methods: [],
+      accounts: [],
+
+      // modal state
+      payment: {
+        id: "",
+        date: "",
+        Ref: "",
+        sale_id: "",
+        payment_method_id: "",
+        montant: 0,
+        notes: "",
+        account_id: ""
+      },
+      paymentProcessing: false,
 
       // vgt rows (with footer group)
       rows: [{ children: [] }],
@@ -220,6 +376,7 @@ export default {
   },
 
   computed: {
+    ...mapGetters(["currentUserPermissions"]),
     columns() {
       return [
         { label: this.$t("date"),          field: "date",           tdClass: "text-left", thClass: "text-left" },
@@ -229,6 +386,7 @@ export default {
         { label: this.$t("ModePaiement"),  field: "payment_method", tdClass: "text-left", thClass: "text-left" },
         { label: this.$t("Account"),       field: "account_name",   tdClass: "text-left", thClass: "text-left", sortable:false },
         { label: this.$t("Amount"),        field: "montant",        type: "decimal", headerField: this.sumCount, tdClass: "text-left", thClass: "text-left" },
+        { label: this.$t("Action"),        field: "actions",        html: true, tdClass: "text-right", thClass: "text-right", sortable: false }
       ];
     },
 
@@ -339,6 +497,7 @@ export default {
           this.clients = data.clients || [];
           this.sales = data.sales || [];
           this.payment_methods = data.payment_methods || [];
+          this.accounts = data.accounts || [];
           this.totalRows = Number(data.totalRows || 0);
           this.rows[0].children = this.payments;
           NProgress.done();
@@ -504,9 +663,98 @@ export default {
       }
     },
 
+    getValidationState({ dirty, validated, valid = null }) {
+      return dirty || validated ? valid : null;
+    },
 
+    Edit_Payment(payment_data) {
+      this.payment = {
+        id: payment_data.id,
+        date: payment_data.date,
+        Ref: payment_data.Ref,
+        sale_id: payment_data.sale_id,
+        payment_method_id: payment_data.payment_method_id,
+        montant: payment_data.montant,
+        notes: payment_data.notes,
+        account_id: payment_data.account_id
+      };
+      this.$bvModal.show("Add_Payment");
+    },
 
+    Submit_Payment() {
+      this.$refs.Add_payment.validate().then(success => {
+        if (!success) return;
+        this.paymentProcessing = true;
+        NProgress.start();
+        NProgress.set(0.1);
 
+        axios.put("payment_sale/" + this.payment.id, {
+          date: this.payment.date,
+          montant: this.payment.montant,
+          account_id: this.payment.account_id,
+          payment_method_id: this.payment.payment_method_id,
+          sale_id: this.payment.sale_id,
+          notes: this.payment.notes,
+          change: 0
+        })
+        .then(() => {
+          this.paymentProcessing = false;
+          NProgress.done();
+          this.$bvModal.hide("Add_Payment");
+          this.makeToast("success", this.$t("Payment_updated_successfully"), this.$t("Success"));
+          this.Payments_Sales(this.serverParams.page);
+        })
+        .catch(() => {
+          this.paymentProcessing = false;
+          NProgress.done();
+          this.makeToast("danger", this.$t("Failed_to_update_payment"), this.$t("Failed"));
+        });
+      });
+    },
+
+    Remove_Payment(id) {
+      this.$swal({
+        title: this.$t("Delete_Title"),
+        text: this.$t("Delete_Text"),
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        cancelButtonText: this.$t("Delete_cancelButtonText"),
+        confirmButtonText: this.$t("Delete_confirmButtonText")
+      }).then(result => {
+        if (result.value) {
+          NProgress.start();
+          NProgress.set(0.1);
+          axios
+            .delete("payment_sale/" + id)
+            .then(() => {
+              this.$swal(
+                this.$t("Delete_Deleted"),
+                this.$t("Deleted_in_successfully"),
+                "success"
+              );
+              this.Payments_Sales(this.serverParams.page);
+            })
+            .catch(() => {
+              NProgress.done();
+              this.$swal(
+                this.$t("Delete_Failed"),
+                this.$t("Delete_Therewassomethingwronge"),
+                "warning"
+              );
+            });
+        }
+      });
+    },
+
+    makeToast(variant, msg, title) {
+      this.$root.$bvToast.toast(msg, {
+        title: title,
+        variant: variant,
+        solid: true
+      });
+    },
   },
 
   created(){ this.Payments_Sales(1); }

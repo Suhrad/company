@@ -82,8 +82,11 @@ class ProductsController extends BaseController
         if($perPage == "-1"){
             $perPage = $totalRows;
         }
+        // SQLite fix: ensure limit is set if offset is used
+        $limit = ($perPage && $perPage > 0) ? $perPage : 1000000;
+
         $products = $Filtred->offset($offSet)
-            ->limit($perPage)
+            ->limit($limit)
             ->orderBy($order, $dir)
             ->get();
 
@@ -1254,7 +1257,7 @@ class ProductsController extends BaseController
     public function Products_by_Warehouse(request $request, $id)
     {
         $data = [];
-        $product_warehouse_data = product_warehouse::with('warehouse', 'product', 'productVariant')
+        $product_warehouse_data = product_warehouse::with('warehouse', 'product.unitPurchase', 'product.unitSale', 'productVariant')
 
         ->where(function ($query) use ($request , $id) {
                 if ($id != 0) {
@@ -1358,6 +1361,8 @@ class ProductsController extends BaseController
             $item['qte'] = $product_warehouse['product']->type!='is_service'?$product_warehouse->qte:'---';
             $item['unitSale'] = $product_warehouse['product']['unitSale']?$product_warehouse['product']['unitSale']->ShortName:'';
             $item['unitPurchase'] = $product_warehouse['product']['unitPurchase']?$product_warehouse['product']['unitPurchase']->ShortName:'';
+            $item['purchase_unit_id'] = $product_warehouse['product']->unit_purchase_id;
+            $item['Net_cost'] = $product_warehouse['product']->cost;
 
             //Discount
         
@@ -1416,7 +1421,7 @@ class ProductsController extends BaseController
     public function show_product_data($id , $variant_id)
     {
 
-        $Product_data = Product::with('unit')
+        $Product_data = Product::with('unit', 'unitPurchase', 'unitSale')
             ->where('id', $id)
             ->where('deleted_at', '=', null)
             ->first();
@@ -2248,8 +2253,8 @@ class ProductsController extends BaseController
         $pageStart = \Request::get('page', 1);
         // Start displaying items from this number;
         $offSet = ($pageStart * $perPage) - $perPage;
-        $order = $request->SortField;
-        $dir = $request->SortType;
+        $order = $request->SortField ? $request->SortField : 'id';
+        $dir = $request->SortType ? $request->SortType : 'desc';
         $helpers = new helpers();
 
         $count_stock = CountStock::whereNull('deleted_at')

@@ -85,4 +85,39 @@ class helpers
         return $code;
     }
 
+    public function getUnifiedSuppliers()
+    {
+        $clients = \App\Models\Client::whereNull('deleted_at')->orderBy('name', 'asc')->get(['id', 'name', 'code', 'email', 'phone', 'country', 'city', 'adresse', 'tax_number', 'gstin', 'pan', 'address_line_1', 'address_line_2', 'address_line_3', 'state', 'source_system']);
+        $suppliers = [];
+        foreach ($clients as $client) {
+            $provider = \App\Models\Provider::whereNull('deleted_at')->where('name', $client->name)->first();
+            if (!$provider) {
+                // Self-healing: create provider counterpart
+                $provider = \App\Models\Provider::create([
+                    'name' => $client->name,
+                    'code' => $client->code,
+                    'email' => $client->email,
+                    'phone' => $client->phone,
+                    'country' => $client->country,
+                    'city' => $client->city,
+                    'adresse' => $client->adresse,
+                    'tax_number' => $client->tax_number,
+                    'gstin' => $client->gstin,
+                    'pan' => $client->pan,
+                    'address_line_1' => $client->address_line_1,
+                    'address_line_2' => $client->address_line_2,
+                    'address_line_3' => $client->address_line_3,
+                    'state' => $client->state,
+                    'source_system' => $client->source_system,
+                ]);
+            }
+            $suppliers[] = [
+                'id' => $provider->id,
+                'name' => $client->name,
+            ];
+        }
+        return $suppliers;
+    }
+
 }
+

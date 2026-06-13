@@ -44,61 +44,23 @@ Route::get('/get-logo-setting', function () {
 });
 
 Route::get('/translations/{locale}', function ($locale) {
-    $translations = \DB::table('translations')
-        ->where('locale', $locale)
-        ->pluck('value', 'key');
+    // Cache translations for 1 hour — querying 29k+ rows on every page load was
+    // causing the login page spinner to hang indefinitely.
+    $translations = \Cache::remember("translations_{$locale}", 3600, function () use ($locale) {
+        return \DB::table('translations')
+            ->where('locale', $locale)
+            ->pluck('value', 'key');
+    });
 
     return response()->json($translations);
 });
 
+Route::get("/languages", "LanguageController@load_language");
 
- Route::get('/languages', 'LanguageController@load_language');
-
-Route::middleware(['auth:api', 'Is_Active'])->group(function () {
-
-    Route::get('/admin/store/settings',  [SettingsApiController::class, 'show']);
-    Route::post('/admin/store/settings', [SettingsApiController::class, 'update']);
-
-    Route::get('/store/orders',        [OnlineOrdersApiController::class, 'index']);
-    Route::get('/store/orders/{id}',   [OnlineOrdersApiController::class, 'show']);
-    Route::patch('/store/orders/{id}', [OnlineOrdersApiController::class, 'update']);
-
-    Route::get('/store/pages',         [PagesApiController::class, 'index']);
-    Route::post('/store/pages',        [PagesApiController::class, 'store']);
-    Route::get('/store/pages/{id}',    [PagesApiController::class, 'show']);
-    Route::put('/store/pages/{id}',    [PagesApiController::class, 'update']);
-    Route::delete('/store/pages/{id}', [PagesApiController::class, 'destroy']);
-
-    Route::get('/store/banners',         [BannersApiController::class, 'index']);
-    Route::post('/store/banners',        [BannersApiController::class, 'store']);
-    Route::get('/store/banners/{id}',    [BannersApiController::class, 'show']);
-    Route::put('/store/banners/{id}',    [BannersApiController::class, 'update']);
-    Route::delete('/store/banners/{id}', [BannersApiController::class, 'destroy']);
-
-    Route::get('/store/subscribers', [SubscriberController::class, 'index']);
-    Route::delete('/store/subscribers/{id}', [SubscriberController::class, 'destroy']);
-
-    Route::get('/store/messages', [MessageController::class, 'index'])->name('messages.index');
-    Route::get('/store/messages/{id}', [MessageController::class, 'show'])->name('messages.show');
-    Route::patch('/store/messages/{id}/toggle-read', [MessageController::class, 'toggleRead']); // optional
-    Route::delete('/store/messages/{id}', [MessageController::class, 'destroy'])->name('messages.destroy');
-
-
-    // Collections (manual)
-    Route::get('/admin/store/collections',                      [CollectionController::class, 'index']);
-    Route::post('/admin/store/collections',                     [CollectionController::class, 'store']);
-    Route::get('/admin/store/collections/{collection}',         [CollectionController::class, 'show']);
-    Route::put('/admin/store/collections/{collection}',         [CollectionController::class, 'update']);
-    Route::delete('/admin/store/collections/{collection}',      [CollectionController::class, 'destroy']);
-    Route::post('/admin/store/collections/{collection}/products', [CollectionController::class, 'syncProducts']);
-
-    Route::get('/admin/store/products', [CollectionController::class, 'searchProducts']);
-    Route::get('/admin/products',       [CollectionController::class, 'searchProducts']);
-
-
+Route::middleware(["auth:api", "Is_Active"])->group(function () {
 
     Route::get("dashboard_data", "DashboardController@dashboard_data");
-    
+
     Route::get('/retrieve-customer', 'StripeController@retrieveCustomer');
     Route::post('/update-customer-stripe', 'StripeController@updateCustomer');
 
@@ -131,16 +93,16 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::get('saral-import/history', 'SaralImportController@history');
     //-------------------------- Reports ---------------------------
 
-    Route::get("report/client", "ReportController@Client_Report");
-    Route::get("report/client/{id}", "ReportController@Client_Report_detail");
+    Route::get("report/company", "ReportController@Company_Report");
+    Route::get("report/company/{id}/{type}", "ReportController@Company_Report_detail");
     Route::get("report/client_sales", "ReportController@Sales_Client");
     Route::get("report/client_payments", "ReportController@Payments_Client");
     Route::get("report/client_quotations", "ReportController@Quotations_Client");
     Route::get("report/client_returns", "ReportController@Returns_Client");
     Route::get("report/customer_ledger/{id}", "ReportController@Customer_Ledger");
     Route::get("report/customer_ledger_pdf/{id}", "ReportController@download_customer_ledger_pdf");
-    Route::get("report/provider", "ReportController@Providers_Report");
-    Route::get("report/provider/{id}", "ReportController@Provider_Report_detail");
+    Route::get("report/supplier_ledger/{id}", "ReportController@Supplier_Ledger");
+    Route::get("report/supplier_ledger_pdf/{id}", "ReportController@download_supplier_ledger_pdf");
     Route::get("report/provider_purchases", "ReportController@Purchases_Provider");
     Route::get("report/provider_payments", "ReportController@Payments_Provider");
     Route::get("report/provider_returns", "ReportController@Returns_Provider");
@@ -148,12 +110,16 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::get("report/purchases", "ReportController@Report_Purchases");
     Route::get("report/get_last_sales", "ReportController@Get_last_Sales");
     Route::get("report/stock_alert", "ReportController@Products_Alert");
+    Route::get("report/job_work", "ReportController@JobWork_Report");
+    Route::get("report/job_work/outstanding", "ReportController@JobWork_Outstanding");
     Route::get("report/payment_chart", "ReportController@Payment_chart");
     Route::get("report/warehouse_report", "ReportController@Warehouse_Report");
     Route::get("report/sales_warehouse", "ReportController@Sales_Warehouse");
+    Route::get("report/purchases_warehouse", "ReportController@Purchases_Warehouse");
     Route::get("report/quotations_warehouse", "ReportController@Quotations_Warehouse");
     Route::get("report/returns_sale_warehouse", "ReportController@Returns_Sale_Warehouse");
     Route::get("report/returns_purchase_warehouse", "ReportController@Returns_Purchase_Warehouse");
+    Route::get("report/ledger_warehouse", "ReportController@Ledger_Warehouse");
 
     Route::get("report/expenses_warehouse", "ReportController@Expenses_Warehouse");
     Route::get("report/warhouse_count_stock", "ReportController@Warhouse_Count_Stock");
@@ -180,7 +146,6 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
 
     Route::get("report/get_sales_by_product", "ReportController@get_sales_by_product");
     Route::get("report/get_quotations_by_product", "ReportController@get_quotations_by_product");
-
     Route::get("report/get_sales_return_by_product", "ReportController@get_sales_return_by_product");
     Route::get("report/get_purchases_by_product", "ReportController@get_purchases_by_product");
     Route::get("report/get_purchase_return_by_product", "ReportController@get_purchase_return_by_product");
@@ -188,6 +153,7 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::get("report/get_adjustment_by_product", "ReportController@get_adjustment_by_product");
     Route::get("report/client_pdf/{id}", "ReportController@download_report_client_pdf");
     Route::get("report/provider_pdf/{id}", "ReportController@download_report_provider_pdf");
+    Route::get("report/stock_pdf", "ReportController@download_stock_pdf");
 
     Route::get("report/inventory_valuation_summary", "ReportController@inventory_valuation_summary");
     Route::get("report/expenses_report", "ReportController@expenses_report");
@@ -203,53 +169,41 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::get('report/discount_summary', 'ReportController@discountSummary');
     Route::get('report/tax_summary', 'ReportController@taxSummary');
     Route::get('report/stock_aging', 'ReportController@stockAging');
-    Route::get('report/stock_aging/filters','ReportController@stockAgingFilters');
+    Route::get('report/stock_aging/filters', 'ReportController@stockAgingFilters');
     Route::get('report/stock_transfer', 'ReportController@stockTransferReport');
     Route::get('report/stock_adjustment', 'ReportController@stockAdjustmentReport');
-    Route::get('report/top_suppliers', 'ReportController@topSuppliersReport');
-
-
-
-
-
-
-
+    Route::get("report/top_suppliers", "ReportController@topSuppliersReport");
 
     //------------------------------- payment_methods ------------------------\\
     //------------------------------------------------------------------\\    
-    Route::resource('payment_methods', 'PaymentMethodController');
+    Route::resource("payment_methods", "PaymentMethodController");
 
     //------------------------------Employee------------------------------------\\
 
-    Route::resource('employees', 'hrm\EmployeesController');
-    Route::post('employees/import/csv', 'hrm\EmployeesController@import_employees');
-    Route::post('employees/delete/by_selection', 'hrm\EmployeesController@delete_by_selection');
+    Route::resource("employees", "hrm\EmployeesController");
+    Route::post("employees/import/csv", "hrm\EmployeesController@import_employees");
+    Route::post("employees/delete/by_selection", "hrm\EmployeesController@delete_by_selection");
     Route::get("get_employees_by_department", "hrm\EmployeesController@Get_employees_by_department");
     Route::put("update_social_profile/{id}", "hrm\EmployeesController@update_social_profile");
     Route::get("get_experiences_by_employee", "hrm\EmployeesController@get_experiences_by_employee");
     Route::get("get_accounts_by_employee", "hrm\EmployeesController@get_accounts_by_employee");
     Route::get("Get_employees_by_company", "hrm\EmployeesController@Get_employees_by_company");
 
-    //------------------------------- Employee Experience ----------------\\
-    //--------------------------------------------------------------------\\
-    
-    Route::resource('work_experience', 'hrm\EmployeeExperienceController');
-
 
     //------------------------------- Employee Accounts bank ----------------\\
     //--------------------------------------------------------------------\\
-    
+
     Route::resource('employee_account', 'hrm\EmployeeAccountController');
 
 
-     //------------------------------- company --------------------------\\
+    //------------------------------- company --------------------------\\
     //--------------------------------------------------------------------\\
     Route::resource('company', 'hrm\CompanyController');
     Route::get("get_all_company", "hrm\CompanyController@Get_all_Company");
     Route::post("company/delete/by_selection", "hrm\CompanyController@delete_by_selection");
 
 
-     //------------------------------- departments --------------------------\\
+    //------------------------------- departments --------------------------\\
     //--------------------------------------------------------------------\\
     Route::resource('departments', 'hrm\DepartmentsController');
     Route::get("get_all_departments", "hrm\DepartmentsController@Get_all_Departments");
@@ -276,7 +230,7 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::post("attendances/delete/by_selection", "hrm\AttendancesController@delete_by_selection");
 
 
-    
+
     //------------------------------- Request leave  -----------------------\\
     //----------------------------------------------------------------\\
 
@@ -286,13 +240,13 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::post("leave_type/delete/by_selection", "hrm\LeaveTypeController@delete_by_selection");
 
 
-     //------------------------------- holiday ----------------------\\
+    //------------------------------- holiday ----------------------\\
     //----------------------------------------------------------------\\
 
     Route::resource('holiday', 'hrm\HolidayController');
     Route::post("holiday/delete/by_selection", "hrm\HolidayController@delete_by_selection");
 
-      //------------------------------- payroll ----------------------\\
+    //------------------------------- payroll ----------------------\\
     //----------------------------------------------------------------\\
 
     Route::resource('payroll', 'hrm\PayrollController');
@@ -302,10 +256,10 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
 
     Route::prefix('core')->group(function () {
 
-       Route::get("get_departments_by_company", "hrm\CoreController@Get_departments_by_company");
-       Route::get("get_designations_by_department", "hrm\CoreController@Get_designations_by_department");
-       Route::get("get_office_shift_by_company", "hrm\CoreController@Get_office_shift_by_company");
-       Route::get("get_employees_by_company", "hrm\CoreController@Get_employees_by_company");
+        Route::get("get_departments_by_company", "hrm\CoreController@Get_departments_by_company");
+        Route::get("get_designations_by_department", "hrm\CoreController@Get_designations_by_department");
+        Route::get("get_office_shift_by_company", "hrm\CoreController@Get_office_shift_by_company");
+        Route::get("get_employees_by_company", "hrm\CoreController@Get_employees_by_company");
 
     });
 
@@ -325,10 +279,10 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
 
 
     // Customer Ledger (separate endpoints)
-    Route::get('/sales_client',    'ClientController@salesByClient');
+    Route::get('/sales_client', 'ClientController@salesByClient');
     Route::get('/payments_client', 'ClientController@paymentsByClient');
     Route::get('/quotations_client', 'ClientController@quotationsByClient');
-    Route::get('/returns_client',     'ClientController@returnsByClient');
+    Route::get('/returns_client', 'ClientController@returnsByClient');
 
     // Basic client info for header (optional but recommended)
     Route::get('clients/{id}/brief', 'ClientController@clientBrief');
@@ -372,45 +326,45 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::post('pos/submit_sale_from_draft', 'PosController@submit_sale_from_draft');
 
 
-       //------------------------------- Project -----------------------\\
-            //----------------------------------------------------------------\\
+    //------------------------------- Project -----------------------\\
+    //----------------------------------------------------------------\\
 
-            Route::resource('projects', 'ProjectController');
+    Route::resource('projects', 'ProjectController');
 
-            Route::post("projects/delete/by_selection", "ProjectController@delete_by_selection");
-            Route::post("project_discussions", "ProjectController@Create_project_discussions");
-            Route::delete("project_discussions/{id}", "ProjectController@destroy_project_discussion");
+    Route::post("projects/delete/by_selection", "ProjectController@delete_by_selection");
+    Route::post("project_discussions", "ProjectController@Create_project_discussions");
+    Route::delete("project_discussions/{id}", "ProjectController@destroy_project_discussion");
 
-            Route::post("project_issues", "ProjectController@Create_project_issues");
-            Route::put("project_issues/{id}", "ProjectController@Update_project_issues");
-            Route::delete("project_issues/{id}", "ProjectController@destroy_project_issues");
+    Route::post("project_issues", "ProjectController@Create_project_issues");
+    Route::put("project_issues/{id}", "ProjectController@Update_project_issues");
+    Route::delete("project_issues/{id}", "ProjectController@destroy_project_issues");
 
-            Route::post("project_documents", "ProjectController@Create_project_documents");
-            Route::delete("project_documents/{id}", "ProjectController@destroy_project_documents");
+    Route::post("project_documents", "ProjectController@Create_project_documents");
+    Route::delete("project_documents/{id}", "ProjectController@destroy_project_documents");
 
-            //------------------------------- Task -----------------------\\
-            //----------------------------------------------------------------\\
+    //------------------------------- Task -----------------------\\
+    //----------------------------------------------------------------\\
 
-            Route::resource('tasks', 'TaskController');
-            Route::put("update_task_status/{id}", "TaskController@update_task_status");
+    Route::resource('tasks', 'TaskController');
+    Route::put("update_task_status/{id}", "TaskController@update_task_status");
 
-            Route::post("tasks/delete/by_selection", "TaskController@delete_by_selection");
-            Route::get("tasks_kanban", "TaskController@tasks_kanban")->name('tasks_kanban');
-            Route::post("task_change_status", "TaskController@task_change_status")->name('task_change_status');
+    Route::post("tasks/delete/by_selection", "TaskController@delete_by_selection");
+    Route::get("tasks_kanban", "TaskController@tasks_kanban")->name('tasks_kanban');
+    Route::post("task_change_status", "TaskController@task_change_status")->name('task_change_status');
 
-            Route::post("task_discussions", "TaskController@Create_task_discussions");
-            Route::delete("task_discussions/{id}", "TaskController@destroy_task_discussion");
+    Route::post("task_discussions", "TaskController@Create_task_discussions");
+    Route::delete("task_discussions/{id}", "TaskController@destroy_task_discussion");
 
-            Route::post("task_documents", "TaskController@Create_task_documents");
-            Route::delete("task_documents/{id}", "TaskController@destroy_task_documents");
+    Route::post("task_documents", "TaskController@Create_task_documents");
+    Route::delete("task_documents/{id}", "TaskController@destroy_task_documents");
 
-            
+
 
     //------------------------------- PRODUCTS --------------------------\\
     //------------------------------------------------------------------\\
 
     Route::resource('products', 'ProductsController');
-    Route::post('products/import/single',   'ProductsController@import_single_products')->middleware('auth:api');
+    Route::post('products/import/single', 'ProductsController@import_single_products')->middleware('auth:api');
     Route::post('products/import/variants', 'ProductsController@import_variant_products')->middleware('auth:api');
 
     Route::get('get_Products_by_warehouse/{id}', 'ProductsController@Products_by_Warehouse');
@@ -421,15 +375,15 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::get('show_product_data/{id}/{variant_id}', 'ProductsController@show_product_data');
     Route::get('get_products_materiels', 'ProductsController@get_products_materiels')->name('get_products_materiels');
 
-    Route::get('opening-stock/import/meta',       'ProductsController@opening_stock_meta');
-    Route::post('opening-stock/import/single',    'ProductsController@opening_stock_import_single');
-    Route::post('opening-stock/import/variants',  'ProductsController@opening_stock_import_variants');
+    Route::get('opening-stock/import/meta', 'ProductsController@opening_stock_meta');
+    Route::post('opening-stock/import/single', 'ProductsController@opening_stock_import_single');
+    Route::post('opening-stock/import/variants', 'ProductsController@opening_stock_import_variants');
 
 
 
-     //---- count stock ----------
-     Route::get('count_stock', 'ProductsController@count_stock_list');
-     Route::post('store_count_stock', 'ProductsController@store_count_stock');
+    //---- count stock ----------
+    Route::get('count_stock', 'ProductsController@count_stock_list');
+    Route::post('store_count_stock', 'ProductsController@store_count_stock');
 
 
     //------------------------------- Category --------------------------\\
@@ -465,6 +419,7 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     //------------------------------- PURCHASES --------------------------\\
     //------------------------------------------------------------------\\
 
+    Route::post('purchases/bulk', 'PurchasesController@store_bulk');
     Route::resource('purchases', 'PurchasesController');
     Route::get('get_payments_by_purchase/{id}', 'PurchasesController@Get_Payments');
     Route::post('purchase_send_email', 'PurchasesController@Send_Email');
@@ -473,12 +428,13 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::get('get_Products_by_purchase/{id}', 'PurchasesController@get_Products_by_purchase');
     Route::post('purchase_send_whatsapp', 'PurchasesController@purchase_send_whatsapp');
 
-    
+
     Route::get('get_import_purchases', 'PurchasesController@get_import_purchases');
     Route::post('store_import_purchases', 'PurchasesController@store_import_purchases');
     //------------------------------- Payments  Purchases --------------------------\\
     //------------------------------------------------------------------------------\\
 
+    Route::post('payment_purchase/bulk', 'PaymentPurchasesController@store_bulk');
     Route::resource('payment_purchase', 'PaymentPurchasesController');
     Route::get('payment_purchase_get_number', 'PaymentPurchasesController@getNumberOrder');
     Route::post('payment_purchase_send_email', 'PaymentPurchasesController@SendEmail');
@@ -487,6 +443,7 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     //-------------------------------  Sales --------------------------\\
     //------------------------------------------------------------------\\
 
+    Route::post('sales/bulk', 'SalesController@store_bulk');
     Route::resource('sales', 'SalesController');
     Route::get('convert_to_sale_data/{id}', 'SalesController@Elemens_Change_To_Sale');
     Route::get('get_payments_by_sale/{id}', 'SalesController@Payments_Sale');
@@ -506,6 +463,7 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     //------------------------------- Payments  Sales --------------------------\\
     //------------------------------------------------------------------\\
 
+    Route::post('payment_sale/bulk', 'PaymentSalesController@store_bulk');
     Route::resource('payment_sale', 'PaymentSalesController');
     Route::get('payment_sale_get_number', 'PaymentSalesController@getNumberOrder');
     Route::post('payment_sale_send_email', 'PaymentSalesController@SendEmail');
@@ -524,13 +482,13 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::resource('expenses_category', 'CategoryExpenseController');
     Route::post('expenses_category_delete_by_selection', 'CategoryExpenseController@delete_by_selection');
 
-     //------------------------------- Accounts --------------------------\\
+    //------------------------------- Accounts --------------------------\\
     //------------------------------------------------------------------\\
 
     Route::resource('accounts', 'AccountController');
     Route::post('accounts_delete_by_selection', 'AccountController@delete_by_selection');
 
-      //------------------------------- TransferMoneyController --------------------------\\
+    //------------------------------- TransferMoneyController --------------------------\\
     //------------------------------------------------------------------\\
 
     Route::resource('transfer_money', 'TransferMoneyController');
@@ -579,7 +537,7 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::post('returns/purchase/delete/by_selection', 'PurchasesReturnController@delete_by_selection');
     Route::get('returns/purchase/create_purchase_return/{id}', 'PurchasesReturnController@create_purchase_return');
     Route::get('returns/purchase/edit_purchase_return/{id}/{purchase_id}', 'PurchasesReturnController@edit_purchase_return');
-    
+
     //------------------------------- Payment Sale Returns --------------------------\\
     //--------------------------------------------------------------------------------\\
 
@@ -609,6 +567,22 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::resource('transfers', 'TransferController');
     Route::post('transfers/delete/by_selection', 'TransferController@delete_by_selection');
 
+    //------------------------------- Job Work --------------------------\\
+    //--------------------------------------------------------------------\\
+    Route::get('job_work', 'JobWorkController@index');
+    Route::post('job_work/issue', 'JobWorkController@storeIssue');
+    Route::get('job_work/pending_rm', 'JobWorkController@getPendingRM');
+    Route::post('job_work/receipt', 'JobWorkController@storeReceipt');
+    Route::get('job_work/pdf/{id}', 'JobWorkController@jobWorkPdf');
+    Route::get('job_work/{id}', 'JobWorkController@show');
+    Route::put('job_work/{id}', 'JobWorkController@update');
+    Route::put('job_work/unified/{id}', 'JobWorkController@unifiedUpdate');
+    Route::get('job_work/receipt/{id}', 'JobWorkController@showReceipt');
+    Route::put('job_work/receipt/{id}', 'JobWorkController@updateReceipt');
+    Route::delete('job_work/receipt/{id}', 'JobWorkController@destroyReceipt');
+    Route::delete('job_work/{id}', 'JobWorkController@destroy');
+    Route::post('job_work/delete/by_selection', 'JobWorkController@delete_by_selection');
+
     //------------------------------- Users --------------------------\\
     //------------------------------------------------------------------\\
 
@@ -625,7 +599,7 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     Route::resource('roles/check/create_page', 'PermissionsController@Check_Create_Page');
     Route::post('roles/delete/by_selection', 'PermissionsController@delete_by_selection');
 
-    
+
     //------------------------------- Settings ------------------------\\
     //------------------------------------------------------------------\\    
     Route::resource('settings', 'SettingsController');
@@ -670,13 +644,14 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
     //------------------------------- Update Settings ------------------------\\
 
     Route::get('get_version_info', 'UpdateController@get_version_info');
-    
+
     //------------------------------- Backup --------------------------\\
     //------------------------------------------------------------------\\
-    
+
     Route::get("get_backup", "BackupController@Get_Backup");
     Route::get("generate_new_backup", "BackupController@Generate_Backup");
     Route::delete("delete_backup/{name}", "BackupController@Delete_Backup");
+    Route::get("download_backup/{name}", "BackupController@Download_Backup");
 
 
     //------------------------------- Module Settings ------------------------\\
@@ -687,21 +662,21 @@ Route::middleware(['auth:api', 'Is_Active'])->group(function () {
 
 });
 
-    //-------------------------------  Print & PDF ------------------------\\
-    //------------------------------------------------------------------\\
+//-------------------------------  Print & PDF ------------------------\\
+//------------------------------------------------------------------\\
 
-    Route::get('sale_pdf/{id}', 'SalesController@Sale_PDF');
-    Route::get('quote_pdf/{id}', 'QuotationsController@Quotation_pdf');
-    Route::get('purchase_pdf/{id}', 'PurchasesController@Purchase_pdf');
-    Route::get('return_sale_pdf/{id}', 'SalesReturnController@Return_pdf');
-    Route::get('return_purchase_pdf/{id}', 'PurchasesReturnController@Return_pdf');
-    Route::get('payment_purchase_pdf/{id}', 'PaymentPurchasesController@Payment_purchase_pdf');
-    Route::get('payment_return_sale_pdf/{id}', 'PaymentSaleReturnsController@payment_return');
-    Route::get('payment_return_purchase_pdf/{id}', 'PaymentPurchaseReturnsController@payment_return');
-    Route::get('payment_sale_pdf/{id}', 'PaymentSalesController@payment_sale');
-    Route::get('sales_print_invoice/{id}', 'SalesController@Print_Invoice_POS');
-    Route::get('transfer_pdf/{id}', 'TransferController@transfer_pdf');
-    Route::get('adjustment_pdf/{id}', 'AdjustmentController@adjustment_pdf');
+Route::get('sale_pdf/{id}', 'SalesController@Sale_PDF');
+Route::get('quote_pdf/{id}', 'QuotationsController@Quotation_pdf');
+Route::get('purchase_pdf/{id}', 'PurchasesController@Purchase_pdf');
+Route::get('return_sale_pdf/{id}', 'SalesReturnController@Return_pdf');
+Route::get('return_purchase_pdf/{id}', 'PurchasesReturnController@Return_pdf');
+Route::get('payment_purchase_pdf/{id}', 'PaymentPurchasesController@Payment_purchase_pdf');
+Route::get('payment_return_sale_pdf/{id}', 'PaymentSaleReturnsController@payment_return');
+Route::get('payment_return_purchase_pdf/{id}', 'PaymentPurchaseReturnsController@payment_return');
+Route::get('payment_sale_pdf/{id}', 'PaymentSalesController@payment_sale');
+Route::get('sales_print_invoice/{id}', 'SalesController@Print_Invoice_POS');
+Route::get('transfer_pdf/{id}', 'TransferController@transfer_pdf');
+Route::get('adjustment_pdf/{id}', 'AdjustmentController@adjustment_pdf');
 
 
-    // Route::get('/available-modules', 'ModuleSettingsController@get_modules_enabled');
+// Route::get('/available-modules', 'ModuleSettingsController@get_modules_enabled');

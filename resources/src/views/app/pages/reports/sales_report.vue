@@ -271,17 +271,11 @@ components: { DateRangePicker },
           thClass: "text-left"
         },
         {
-          label: "Note",
-          field: "notes",
+          label: "Items",
+          field: "items",
           tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
-          label: "GST",
-          field: "tax_amount",
-          type: "decimal",
-          tdClass: "text-right",
-          thClass: "text-right"
+          thClass: "text-left",
+          sortable: false
         },
         {
           label: "Bill Amount",
@@ -396,43 +390,72 @@ components: { DateRangePicker },
     //----------------------------------- Sales PDF ------------------------------\\
     Sales_PDF() {
       var self = this;
-      let pdf = new jsPDF("l", "pt"); // Landscape
+      let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
 
       const fontPath = "/fonts/Vazirmatn-Bold.ttf";
       pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
       pdf.setFont("VazirmatnBold"); 
 
       let columns = [
-        { title: "Sr.No", dataKey: "sr_no" },
         { title: "Date", dataKey: "date" },
-        { title: "Bill No.", dataKey: "Ref" },
+        { title: "Warehouse", dataKey: "warehouse_name" },
         { title: "Party Name", dataKey: "party_details" },
-        { title: "GST", dataKey: "tax_amount" },
-        { title: "Bill Amount", dataKey: "GrandTotal" },
+        { title: "Product", dataKey: "product_names" },
+        { title: "Items", dataKey: "item_quantities" },
+        { title: "Amount", dataKey: "GrandTotal" },
       ];
 
       let formatted_sales = self.sales.map((sale, index) => {
-        let tax_total = parseFloat(sale.cgst_amount || 0) + parseFloat(sale.sgst_amount || 0) + parseFloat(sale.igst_amount || 0);
+        // Warehouse Shortcut Mapping
+        let warehouseShortcut = sale.warehouse_name || "";
+        if (warehouseShortcut.includes("STM")) warehouseShortcut = "STM";
+        else if (warehouseShortcut.includes("Nirmal") || warehouseShortcut.includes("NP")) warehouseShortcut = "NP";
+        else if (warehouseShortcut.includes("SL")) warehouseShortcut = "SL";
+        else if (warehouseShortcut.includes("SP")) warehouseShortcut = "SP";
+
+        let productNames = "";
+        let itemQtys = "";
+        
+        if (sale.items) {
+           const parts = sale.items.split(', ');
+           productNames = parts.map(p => p.split(' (')[0]).join(', ');
+           itemQtys = parts.map(p => {
+             const m = p.match(/\(([^)]+)\)/);
+             return m ? m[1] : '';
+           }).join(', ');
+        }
+
         return {
-          sr_no: index + 1,
           date: sale.date,
-          Ref: sale.Ref,
+          warehouse_name: warehouseShortcut,
           party_details: `${sale.client_name}${sale.notes ? '\nNote: ' + sale.notes : ''}`,
-          tax_amount: tax_total.toFixed(2),
+          product_names: productNames,
+          item_quantities: itemQtys,
           GrandTotal: sale.GrandTotal || "0.00",
         };
       });
 
        // Calculate totals
-      let totalTax = self.sales.reduce((sum, sale) => sum + (parseFloat(sale.cgst_amount || 0) + parseFloat(sale.sgst_amount || 0) + parseFloat(sale.igst_amount || 0)), 0);
       let totalBillAmount = self.sales.reduce((sum, sale) => sum + parseFloat(sale.GrandTotal || 0), 0);
 
+      // Calculate Total Items (Quantities)
+      let totalItems = 0;
+      self.sales.forEach(sale => {
+        if (sale.items) {
+           const parts = sale.items.split(', ');
+           parts.forEach(p => {
+             const m = p.match(/\(([^)]+)\)/);
+             if (m) totalItems += parseFloat(m[1]);
+           });
+        }
+      });
+
       let footer = [{
-        sr_no: '',
         date: '',
-        Ref: '',
-        party_details: 'Total .....',
-        tax_amount: `${totalTax.toFixed(2)}`,
+        warehouse_name: '',
+        party_details: '',
+        product_names: 'Total .....',
+        item_quantities: `${totalItems.toFixed(2)}`,
         GrandTotal: `${totalBillAmount.toFixed(2)}`,
       }];
 
@@ -444,13 +467,15 @@ components: { DateRangePicker },
              theme: "grid", 
              styles: {
                font: "VazirmatnBold", 
-               fontSize: 9,
+               fontSize: 11,
                halign: "center",
              },
              columnStyles: {
-                party_details: { halign: 'left' },
-                tax_amount: { halign: 'right' },
-                GrandTotal: { halign: 'right' },
+                warehouse_name: { cellWidth: 45 },
+                party_details: { halign: 'left', cellWidth: 'auto' },
+                product_names: { halign: 'left', cellWidth: 100 },
+                item_quantities: { halign: 'center', cellWidth: 50 },
+                GrandTotal: { halign: 'right', cellWidth: 70 },
              },
              didDrawPage: (data) => {
                 pdf.setFont("VazirmatnBold");
@@ -458,8 +483,24 @@ components: { DateRangePicker },
                 pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
                 pdf.setFontSize(14);
                 pdf.text("Sales List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
+                
+                // Filter Info
                 pdf.setFontSize(10);
-                pdf.text(`Period From : ${self.startDate} To ${self.endDate}`, pdf.internal.pageSize.width / 2, 65, { align: 'center' });
+                let filterText = [];
+                if (self.Filter_warehouse) {
+                  const wh = self.warehouses.find(w => w.id == self.Filter_warehouse);
+                  if (wh) filterText.push(`Warehouse: ${wh.name}`);
+                }
+                if (self.Filter_Client) {
+                  const cl = self.customers.find(c => c.id == self.Filter_Client);
+                  if (cl) filterText.push(`Customer: ${cl.name}`);
+                }
+                
+                filterText.push(`Period: ${self.startDate} to ${self.endDate}`);
+
+                if (filterText.length > 0) {
+                   pdf.text(filterText.join(" | "), pdf.internal.pageSize.width / 2, 65, { align: 'center' });
+                }
              },
              headStyles: {
                fillColor: [242, 242, 242], 
@@ -472,7 +513,7 @@ components: { DateRangePicker },
                fillColor: [242, 242, 242], 
                textColor: [0, 0, 0], 
                fontStyle: "bold", 
-               lineWidth: 0.5,
+               lineWidth: 0.5, 
                lineColor: [0, 0, 0],
              },
       });

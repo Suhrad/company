@@ -118,7 +118,7 @@
           @on-search="onSearch"
         >
           <template slot="table-row" slot-scope="p">
-            <span v-if="p.column.field === 'qty' || p.column.field === 'net_qty'">
+            <span v-if="p.column.field === 'qty' || p.column.field === 'net_qty' || p.column.field === 'sub_qty' || p.column.field === 'add_qty'">
               {{ formatQty(p.row[p.column.field]) }}
             </span>
             <span v-else>
@@ -217,12 +217,12 @@ export default {
 
     columns(){
       return [
-        { label:this.$t('ID'),         field:'adj_id',    sortable:true },
-        { label:this.$t('Ref'),        field:'ref',       sortable:true },
         { label:this.$t('date'),       field:'date',      sortable:true },
         { label:this.$t('warehouse'),  field:'warehouse', sortable:true },
-        { label:this.$t('Qty'),        field:'qty',       type:'number', sortable:true },
-        { label:this.$t('NetQty'),     field:'net_qty',   type:'number', sortable:true },
+        { label:'Consumed Material',   field:'sub_items', sortable:false },
+        { label:'Sub Qty',             field:'sub_qty',   type:'number', sortable:true },
+        { label:'Produced Product',    field:'add_items', sortable:false },
+        { label:'Add Qty',             field:'add_qty',   type:'number', sortable:true },
       ];
     },
 
@@ -349,13 +349,15 @@ export default {
 
       // Table
       const head = [[
-        this.$t('ID'), this.$t('Ref'), this.$t('date'),
-        this.$t('warehouse'), this.$t('Qty'), this.$t('NetQty'),
+        this.$t('date'), this.$t('warehouse'),
+        'Consumed Material', 'Sub Qty',
+        'Produced Product', 'Add Qty',
       ]];
       const items = (await this.fetchAllRowsForExport()).rows || [];
       const body = items.map(r => [
-        String(r.adj_id ?? ''), String(r.ref ?? ''), String(r.date ?? ''),
-        String(r.warehouse ?? ''), this.formatQty(r.qty), this.formatQty(r.net_qty),
+        String(r.date ?? ''), String(r.warehouse ?? ''),
+        String(r.sub_items ?? '---'), this.formatQty(r.sub_qty),
+        String(r.add_items ?? '---'), this.formatQty(r.add_qty),
       ]);
       const tQty = items.reduce((a,b)=>a+Number(b.qty||0),0);
       const tNet = items.reduce((a,b)=>a+Number(b.net_qty||0),0);
@@ -385,9 +387,10 @@ export default {
           : { 4:{halign:'right'}, 5:{halign:'right'} },
         foot: [[
           { content: this.$t('Totals'), styles:{ fontStyle:'bold' } },
-          '', '', '',
-          { content: this.formatQty(tQty), styles:{ halign:'right', fontStyle:'bold' } },
-          { content: this.formatQty(tNet), styles:{ halign:'right', fontStyle:'bold' } },
+          '', '',
+          { content: this.formatQty(items.reduce((a,b)=>a+Number(b.sub_qty||0),0)), styles:{ halign:'right', fontStyle:'bold' } },
+          '',
+          { content: this.formatQty(items.reduce((a,b)=>a+Number(b.add_qty||0),0)), styles:{ halign:'right', fontStyle:'bold' } },
         ]],
         didDrawPage: d => {
           const pw = pdf.internal.pageSize.getWidth();

@@ -230,10 +230,12 @@ class UserController extends BaseController
             $user = User::findOrFail($id);
             $current = $user->password;
 
-            if ($request->NewPassword != 'null') {
-                if ($request->NewPassword != $current) {
+            if ($request->NewPassword != 'null' && !empty($request->NewPassword)) {
+                // Check if the new password is different from the current one
+                if (!Hash::check($request->NewPassword, $current)) {
                     $pass = Hash::make($request->NewPassword);
                 } else {
+                    // New password is the same as current, keep it
                     $pass = $user->password;
                 }
 
@@ -316,8 +318,9 @@ class UserController extends BaseController
         $user = User::findOrFail($id);
         $current = $user->password;
 
-        if ($request->NewPassword != 'undefined') {
-            if ($request->NewPassword != $current) {
+        if ($request->NewPassword != 'undefined' && !empty($request->NewPassword)) {
+            // Properly check if the new password is different using Hash::check
+            if (!Hash::check($request->NewPassword, $current)) {
                 $pass = Hash::make($request->NewPassword);
             } else {
                 $pass = $user->password;

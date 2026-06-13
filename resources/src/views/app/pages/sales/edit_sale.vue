@@ -28,6 +28,7 @@
                   >
                     <b-form-group :label="$t('date') + ' ' + '*'">
                       <b-form-input
+                        :disabled="isReadOnly"
                         :state="getValidationState(validationContext)"
                         aria-describedby="date-feedback"
                         type="date"
@@ -44,10 +45,10 @@
                   <validation-provider name="Customer" :rules="{ required: true}">
                     <b-form-group slot-scope="{ valid, errors }" :label="$t('Customer') + ' ' + '*'">
                       <v-select
+                        :disabled="isReadOnly"
                         :class="{'is-invalid': !!errors.length}"
                         :state="errors[0] ? false : (valid ? true : null)"
                         v-model="sale.client_id"
-                        disabled
                         :reduce="label => label.value"
                         :placeholder="$t('Choose_Customer')"
                         :options="clients.map(clients => ({label: clients.name, value: clients.id}))"
@@ -56,15 +57,15 @@
                     </b-form-group>
                   </validation-provider>
                 </b-col>
-
+ 
                 <!-- warehouse -->
                 <b-col lg="4" md="4" sm="12" class="mb-3">
                   <validation-provider name="warehouse" :rules="{ required: true}">
                     <b-form-group slot-scope="{ valid, errors }" :label="$t('warehouse') + ' ' + '*'">
                       <v-select
+                        :disabled="isReadOnly"
                         :class="{'is-invalid': !!errors.length}"
                         :state="errors[0] ? false : (valid ? true : null)"
-                        :disabled="details.length > 0"
                         @input="Selected_Warehouse"
                         v-model="sale.warehouse_id"
                         :reduce="label => label.value"
@@ -80,6 +81,7 @@
                 <b-col lg="4" md="4" sm="12" class="mb-3">
                   <b-form-group :label="$t('Transport')">
                     <v-select
+                      :disabled="isReadOnly"
                       v-model="sale.transporter_name"
                       @input="Selected_Transport"
                       :reduce="label => label.value"
@@ -93,6 +95,7 @@
                 <b-col lg="4" md="4" sm="12" class="mb-3">
                   <b-form-group label="LR:">
                     <b-form-input
+                      :disabled="isReadOnly"
                       v-model="sale.lr_number"
                       @keyup="updateNote"
                       :placeholder="$t('Enter_LR_Number')"
@@ -101,7 +104,7 @@
                 </b-col>
 
                   <!-- Product -->
-                <b-col md="12" class="mb-5">
+                <b-col md="12" class="mb-5" v-if="!isReadOnly">
                   <h6>{{$t('ProductName')}}</h6>
                  
 
@@ -134,7 +137,7 @@
                           <th scope="col">{{$t('ProductName')}}</th>
                           <th scope="col" style="width: 250px;">{{$t('Qty')}}</th>
                           <th scope="col" style="width: 250px;">{{$t('Amount')}}</th>
-                          <th scope="col" class="text-center">
+                          <th scope="col" class="text-center" v-if="!isReadOnly">
                             <i class="i-Close-Window text-25"></i>
                           </th>
                         </tr>
@@ -146,13 +149,24 @@
                           >
                           <td>{{detail.detail_id}}</td>
                           <td>
-                            <span class="badge badge-success">{{detail.name}}</span>
+                            <v-select
+                              v-model="detail.product_id"
+                              :disabled="isReadOnly"
+                              :reduce="label => label.value"
+                              :placeholder="$t('Choose_Product')"
+                              :options="products.map(p => ({label: p.name + ' (' + p.code + ')', value: p.id}))"
+                              @input="onGridProductChange(detail)"
+                              class="grid-v-select"
+                              append-to-body
+                            />
                           </td>
                           <td>
                             <b-form-input
                               v-model.number="detail.quantity"
+                              :disabled="isReadOnly"
                               @keyup="Verified_Qty(detail,detail.detail_id)"
-                              type="number"
+                              type="text"
+                              inputmode="decimal"
                               class="form-control text-center"
                               style="height: 60px; font-size: 1.8rem; font-weight: bold;"
                             ></b-form-input>
@@ -160,13 +174,15 @@
                           <td>
                             <b-form-input
                               v-model.number="detail.subtotal"
+                              :disabled="isReadOnly"
                               @keyup="Manual_Amount_Update(detail)"
-                              type="number"
+                              type="text"
+                              inputmode="decimal"
                               class="form-control text-right"
                               style="height: 60px; font-size: 1.8rem; font-weight: bold;"
                             ></b-form-input>
                           </td>
-                          <td class="text-center">
+                          <td class="text-center" v-if="!isReadOnly">
                             <i @click="delete_Product_Detail(detail.detail_id)" class="i-Close-Window text-25 text-danger cursor-pointer"></i>
                           </td>
                         </tr>
@@ -194,10 +210,13 @@
 
 
 
+
+
                 <b-col md="12">
                   <b-form-group :label="$t('Note')">
                     <textarea
                       v-model="sale.notes"
+                      :disabled="isReadOnly"
                       rows="4"
                       class="form-control"
                       :placeholder="$t('Afewwords')"
@@ -206,9 +225,21 @@
                 </b-col>
                 <b-col md="12">
                   <b-form-group>
-                    <b-button variant="primary" @click="Submit_Sale" :disabled="SubmitProcessing"><i class="i-Yes me-2 font-weight-bold"></i> {{$t('submit')}}</b-button>
+                    <b-button variant="primary" @click="Submit_Sale" :disabled="SubmitProcessing" v-if="!isReadOnly"><i class="i-Yes me-2 font-weight-bold"></i> {{$t('submit')}}</b-button>
                      <div v-once class="typo__p" v-if="SubmitProcessing">
                       <div class="spinner sm spinner-primary mt-3"></div>
+                    </div>
+
+                    <div class="mt-3" v-if="isReadOnly">
+                      <b-button variant="warning" class="m-1" @click="isReadOnly = false">
+                        <i class="i-Pen-2 me-2 font-weight-bold"></i> Edit
+                      </b-button>
+                      <b-button variant="danger" class="m-1" @click="Remove_Sale">
+                        <i class="i-Close-Window me-2 font-weight-bold"></i> Delete
+                      </b-button>
+                      <b-button variant="success" class="m-1" @click="Invoice_PDF">
+                        <i class="i-File-Copy me-2 font-weight-bold"></i> Download as PDF
+                      </b-button>
                     </div>
                   </b-form-group>
                 </b-col>
@@ -224,25 +255,6 @@
       <b-modal hide-footer size="lg" id="form_Update_Detail" :title="detail.name">
         <b-form @submit.prevent="submit_Update_Detail">
           <b-row>
-            <!-- Unit Price -->
-           <b-col lg="6" md="6" sm="12">
-              <validation-provider
-                name="Product Price"
-                :rules="{ required: true , regex: /^\d*\.?\d*$/}"
-                v-slot="validationContext"
-              >
-                <b-form-group :label="$t('ProductPrice') + ' ' + '*'" id="Price-input">
-                  <b-form-input
-                    label="Product Price"
-                    v-model.number="detail.Unit_price"
-                    :state="getValidationState(validationContext)"
-                    aria-describedby="Price-feedback"
-                  ></b-form-input>
-                  <b-form-invalid-feedback id="Price-feedback">{{ validationContext.errors[0] }}</b-form-invalid-feedback>
-                </b-form-group>
-              </validation-provider>
-            </b-col>
-
             <!-- Tax Method -->
            <b-col lg="6" md="6" sm="12">
               <validation-provider name="Tax Method" :rules="{ required: true}">
@@ -370,6 +382,7 @@ export default {
       search_input:'',
       product_filter:[],
       isLoading: true,
+      isReadOnly: true,
       SubmitProcessing:false,
       Submit_Processing_detail:false,
       selectedProductId: null,
@@ -390,7 +403,7 @@ export default {
       sale: {
         id: "",
         date: "",
-        statut: "",
+        statut: "completed",
         notes: "",
         transporter_name: "",
         lr_number: "",
@@ -585,7 +598,29 @@ export default {
 
     },
 
+    Verified_Qty(detail, id) {
+      if (isNaN(detail.quantity) || detail.quantity === "") {
+        detail.quantity = 0;
+      }
+      detail.quantity = parseFloat(detail.quantity);
+
+       // If we have a subtotal and quantity > 0, back-calculate the price to keep amount same
+      if (detail.subtotal > 0 && detail.quantity > 0) {
+        detail.Unit_price = parseFloat((detail.subtotal / detail.quantity).toFixed(2));
+      } else {
+        // Fallback: if no subtotal yet, calculate subtotal from price
+        detail.subtotal = parseFloat((detail.quantity * detail.Unit_price).toFixed(2));
+      }
+
+      this.Calcul_Total();
+    },
+
     Manual_Amount_Update(detail) {
+      detail.subtotal = parseFloat(detail.subtotal || 0);
+      if (detail.quantity > 0) {
+        detail.Unit_price = parseFloat(detail.subtotal / detail.quantity).toFixed(2);
+        detail.Unit_price = parseFloat(detail.Unit_price);
+      }
       this.Calcul_Total();
     },
 
@@ -595,6 +630,27 @@ export default {
         this.selectedProductId = null;
       }
     },
+    onGridProductChange(detail) {
+      const product = this.products.find(p => p.id === detail.product_id);
+      if (product) {
+        detail.name = product.name;
+        detail.code = product.code;
+        detail.Unit_price = product.Net_price;
+        detail.tax_method = product.tax_method;
+        detail.tax_percent = product.tax_percent;
+        detail.is_imei = product.is_imei;
+        
+        // Fetch full details if necessary (though most are in this.products)
+        axios.get("/show_product_data/" + product.id + "/" + (product.product_variant_id || "null")).then(response => {
+          detail.Unit_price = response.data.Unit_price;
+          detail.tax_percent = response.data.tax_percent;
+          detail.tax_method = response.data.tax_method;
+          detail.sale_unit_id = response.data.sale_unit_id;
+          this.Verified_Qty(detail, detail.detail_id);
+        });
+      }
+    },
+
     search(){
       if (this.timer) {
             clearTimeout(this.timer);
@@ -705,7 +761,7 @@ export default {
         } else {
 
             if( result.product_type =='is_service'){
-              this.product.quantity = 1;
+              this.product.quantity = 0;
               this.product.code = result.code;
             }else{
 
@@ -717,7 +773,7 @@ export default {
               if (weight !== null) {
                 this.product.quantity = weight; // Assign extracted weight
               } else {
-                this.product.quantity = result.qte_sale < 1 ? result.qte_sale : 1;
+                this.product.quantity = 0;
               }
 
            
@@ -771,74 +827,9 @@ export default {
       }
     },
 
-    //-----------------------------------Verified QTY ------------------------------\\
-    Verified_Qty(detail, id) {
-      this.Calcul_Total();
-    },
 
-    //-----------------------------------increment QTY ------------------------------\\
 
-    increment(detail, id) {
-      for (var i = 0; i < this.details.length; i++) {
-        if (this.details[i].detail_id == id) {
-           this.formatNumber(this.details[i].quantity++, 2);
-        }
-      }
-      this.$forceUpdate();
-      this.Calcul_Total();
-    },
 
-    //-----------------------------------decrement QTY ------------------------------\\
-
-    decrement(detail, id) {
-      for (var i = 0; i < this.details.length; i++) {
-        if (this.details[i].detail_id == id) {
-          if (detail.quantity - 1 > 0) {
-              this.formatNumber(this.details[i].quantity--, 2);
-          }
-        }
-      }
-      this.$forceUpdate();
-      this.Calcul_Total();
-    },
-
-    //---------- keyup OrderTax
-    keyup_OrderTax() {
-      if (isNaN(this.sale.tax_rate)) {
-        this.sale.tax_rate = 0;
-      } else if(this.sale.tax_rate == ''){
-         this.sale.tax_rate = 0;
-        this.Calcul_Total();
-      }else {
-        this.Calcul_Total();
-      }
-    },
-
-    //---------- keyup Discount
-
-    keyup_Discount() {
-      if (isNaN(this.sale.discount)) {
-        this.sale.discount = 0;
-      } else if(this.sale.discount == ''){
-         this.sale.discount = 0;
-        this.Calcul_Total();
-      }else {
-        this.Calcul_Total();
-      }
-    },
-
-    //---------- keyup Shipping
-
-    keyup_Shipping() {
-      if (isNaN(this.sale.shipping)) {
-        this.sale.shipping = 0;
-      } else if(this.sale.shipping == ''){
-         this.sale.shipping = 0;
-        this.Calcul_Total();
-      }else {
-        this.Calcul_Total();
-      }
-    },
 
     //------------------------------Formetted Numbers -------------------------\\
     formatNumber(number, dec) {
@@ -858,18 +849,11 @@ export default {
     Calcul_Total() {
       this.total = 0;
       for (var i = 0; i < this.details.length; i++) {
+        this.details[i].subtotal = parseFloat(parseFloat(this.details[i].subtotal).toFixed(2));
         this.total = parseFloat(this.total + this.details[i].subtotal);
       }
 
-      const total_without_discount = parseFloat(
-        this.total - this.sale.discount
-      );
-      this.sale.TaxNet = parseFloat(
-        (total_without_discount * this.sale.tax_rate) / 100
-      );
-      this.GrandTotal = parseFloat(
-        total_without_discount + this.sale.TaxNet + this.sale.shipping
-      );
+      this.GrandTotal = this.total;
 
       var grand_total =  this.GrandTotal.toFixed(2);
       this.GrandTotal = parseFloat(grand_total);
@@ -931,13 +915,15 @@ export default {
             warehouse_id: this.sale.warehouse_id,
             statut: this.sale.statut,
             notes: this.sale.notes,
-            tax_rate: this.sale.tax_rate?this.sale.tax_rate:0,
-            TaxNet: this.sale.TaxNet?this.sale.TaxNet:0,
-            discount: this.sale.discount?this.sale.discount:0,
-            shipping: this.sale.shipping?this.sale.shipping:0,
+            tax_rate: 0,
+            TaxNet: 0,
+            discount: 0,
+            shipping: 0,
             details: this.details,
             discount_from_points: this.discount_from_points,
             used_points: this.used_points,
+            transporter_name: this.sale.transporter_name,
+            lr_number: this.sale.lr_number,
           })
           .then(response => {
             this.makeToast(
@@ -1047,6 +1033,73 @@ export default {
       }
       this.sale.notes = note;
     },
+
+    //------------------------------------------ Remove Sale ------------------------------\\
+    Remove_Sale() {
+      this.$swal({
+        title: this.$t("Delete_Title"),
+        text: this.$t("Delete_Text"),
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        cancelButtonText: this.$t("Delete_cancelButtonText"),
+        confirmButtonText: this.$t("Delete_confirmButtonText")
+      }).then(result => {
+        if (result.value) {
+          // Start the progress bar.
+          NProgress.start();
+          NProgress.set(0.1);
+          axios
+            .delete("sales/" + this.$route.params.id)
+            .then(() => {
+              this.$swal(
+                this.$t("Delete_Deleted"),
+                this.$t("Deleted_in_successfully"),
+                "success"
+              );
+              this.$router.push({ name: "index_sales" });
+            })
+            .catch(() => {
+              // Complete the animation of the  progress bar.
+              setTimeout(() => NProgress.done(), 500);
+              this.$swal(
+                this.$t("Delete_Failed"),
+                this.$t("Delete_Therewassomethingwronge"),
+                "warning"
+              );
+            });
+        }
+      });
+    },
+
+    //------------------------------------------ Invoice PDF ------------------------------\\
+    Invoice_PDF() {
+      // Start the progress bar.
+      NProgress.start();
+      NProgress.set(0.1);
+      axios
+        .get("sale_pdf/" + this.$route.params.id, {
+          responseType: "blob", // important
+          headers: {
+            "Content-Type": "application/json"
+          }
+        })
+        .then(response => {
+          const url = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", "Sale-" + this.sale.Ref + ".pdf");
+          document.body.appendChild(link);
+          link.click();
+          // Complete the animation of the  progress bar.
+          setTimeout(() => NProgress.done(), 500);
+        })
+        .catch(() => {
+          // Complete the animation of the  progress bar.
+          setTimeout(() => NProgress.done(), 500);
+        });
+    },
   },
 
   //----------------------------- Created function-------------------
@@ -1058,7 +1111,7 @@ export default {
 
 <style scoped>
   .main-content, .main-content label, .main-content input, .main-content .v-select, .main-content .table, .main-content .badge {
-    font-size: 1.1rem !important;
+    font-size: 1.3rem !important;
   }
   .main-content h5, .main-content h6 {
     font-size: 1.3rem !important;

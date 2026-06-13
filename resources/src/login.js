@@ -1,11 +1,15 @@
 import store from "./store";
+import Auth from './auth/index.js';
+window.auth = new Auth();
+import "./assets/styles/sass/themes/lite-purple.scss";
+import axios from 'axios';
+
 import Vue from "vue";
-import router, { setupRouterGuards } from "./router";
 import { ValidationObserver, ValidationProvider, extend, localize } from 'vee-validate';
 import * as rules from "vee-validate/dist/rules";
 import BootstrapVue from 'bootstrap-vue/dist/bootstrap-vue.esm';
 Vue.use(BootstrapVue);
-import "./assets/styles/sass/themes/lite-purple.scss";
+
 
 Vue.component(
   "large-sidebar",
@@ -65,14 +69,10 @@ axios.interceptors.response.use((response) => {
 }, (error) => {
   if (error.response && error.response.data) {
     if (error.response.status === 401) {
-      window.location.href='/login';
-    }
-
-    if (error.response.status === 404) {
-      router.push({ name: 'NotFound' });
-    }
-    if (error.response.status === 403) {
-      router.push({ name: 'not_authorize' });
+      // Only redirect if not already on the login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href='/login';
+      }
     }
 
     return Promise.reject(error.response.data);
@@ -95,15 +95,24 @@ Vue.use(VueI18n);
 
 import { loadI18n } from './plugins/i18n.loader';
 
+function hideLoadingWrap() {
+  const loadingWrap = document.getElementById('loading_wrap');
+  if (loadingWrap) {
+    loadingWrap.style.display = 'none';
+  }
+}
+
 loadI18n().then(i18n => {
  store.commit('SetDefaultLanguage', { i18n, Language: i18n.locale });
-  setupRouterGuards(i18n); // ✅ inject into router
 
   new Vue({
     el: '#login',
     store,
-    router,
     i18n,
   });
+
+  Vue.nextTick(hideLoadingWrap);
 });
+
+window.addEventListener('load', hideLoadingWrap);
 

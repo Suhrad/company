@@ -109,7 +109,7 @@ class PaymentPurchaseReturnsController extends BaseController
             $data[] = $item;
         }
 
-        $suppliers = Provider::where('deleted_at', '=', null)->get(['id', 'name']);
+        $suppliers = $helpers->getUnifiedSuppliers();
         $purchase_returns = PurchaseReturn::get(['Ref', 'id']);
         $payment_methods = PaymentMethod::where('deleted_at', '=', null)->get(['id', 'name']);
 

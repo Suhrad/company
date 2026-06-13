@@ -1,129 +1,137 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-   <head>
-      <meta charset="utf-8">
-      <title>Sale _{{$sale['Ref']}}</title>
-      <link rel="stylesheet" href="{{public_path('/css/pdf_style.css')}}" media="all" />
-   </head>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sale - {{ $sale['Ref'] }}</title>
+    <style>
+        @page { size: A4; margin: 20px; }
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 13px; color: #333; line-height: 1.4; }
+        .container { width: 100%; }
+        
+        /* Header section */
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #444; padding-bottom: 10px; }
+        .company-name { font-size: 26px; font-weight: bold; text-transform: uppercase; margin: 0; }
+        
+        .report-title { font-size: 20px; font-weight: bold; margin: 15px 0 5px; text-decoration: underline; }
+        
+        /* Info section */
+        .info-table { width: 100%; margin-bottom: 20px; border: 1px solid #000; border-collapse: collapse; }
+        .info-table td { padding: 8px; vertical-align: top; border: 1px solid #000; }
+        .client-name { font-size: 16px; font-weight: bold; text-transform: uppercase; }
+        
+        /* Table styles */
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .data-table th { background-color: #f2f2f2; border: 1px solid #000; padding: 8px; font-weight: bold; text-align: center; }
+        .data-table td { border: 1px solid #000; padding: 8px; vertical-align: middle; }
+        
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .font-bold { font-weight: bold; }
+        
+        /* Footer section */
+        .footer-table { width: 40%; margin-left: 60%; margin-top: 20px; border-collapse: collapse; }
+        .footer-table td { border: 1px solid #000; padding: 8px; font-weight: bold; }
+        .bg-grey { background-color: #f2f2f2; }
 
-   <body>
-      <header class="clearfix">
-         <div id="logo">
-         <img src="{{public_path('/images/'.$setting['logo'])}}">
-         </div>
-         <div id="company">
-            <div><strong> Date : </strong>{{$sale['date']}}</div>
-            <div><strong> Number : </strong> {{$sale['Ref']}}</div>
-            <div><strong> Status : </strong> {{$sale['statut']}}</div>
-            <div><strong> Payment Status : </strong> {{$sale['payment_status']}}</div>
-         </div>
-         <div id="Title-heading">
-            Sale  : {{$sale['Ref']}}
-         </div>
-         </div>
-      </header>
-      <main>
-         <div id="details" class="clearfix">
-            <div id="client">
-               <table class="table-sm">
-                  <thead>
-                     <tr>
-                        <th class="desc">Customer Info</th>
-                     </tr>
-                  </thead>
-                  <tbody>
-                     <tr>
-                        <td>
-                           <div><strong>Full Name :</strong> {{$sale['client_name']}}</div>
-                           <div><strong>Phone :</strong> {{$sale['client_phone']}}</div>
-                           <div><strong>Email :</strong>  {{$sale['client_email']}}</div>
-                           <div><strong>Address :</strong>   {{$sale['client_adr']}}</div>
-                           @if($sale['client_tax'])<div><strong>Tax Number :</strong>  {{$sale['client_tax']}}</div>@endif
-                        </td>
-                     </tr>
-                  </tbody>
-               </table>
-            </div>
-            <div id="invoice">
-               <table class="table-sm">
-                  <thead>
-                     <tr>
-                        <th class="desc">Company Info</th>
-                     </tr>
-                  </thead>
-                  <tbody>
-                     <tr>
-                        <td>
-                           <div id="comp">{{$setting['CompanyName']}}</div>
-                           <div><strong>Phone :</strong>  {{$setting['CompanyPhone']}}</div>
-                           <div><strong>Email :</strong>  {{$setting['email']}}</div>
-                           <div><strong>Address :</strong>  {{$setting['CompanyAdress']}}</div>
-                        </td>
-                     </tr>
-                  </tbody>
-               </table>
-            </div>
-         </div>
-         <div id="details_inv">
-            <table  class="table-sm">
-               <thead>
-                  <tr>
-                     <th>PRODUCT</th>
-                     <th>QUANTITY</th>
-                     <th>AMOUNT</th>
-                  </tr>
-               </thead>
-               <tbody>
-                  @foreach ($details as $detail)
-                  <tr>
-                     <td>
-                        <span>{{$detail['code']}} ({{$detail['name']}})</span>
-                           @if($detail['is_imei'] && $detail['imei_number'] !==null)
-                               <p>IMEI/SN : {{$detail['imei_number']}}</p>
-                           @endif
-                     </td>
-                     <td>{{$detail['quantity']}} {{$detail['unitSale']}}</td>
-                     <td>{{$detail['total']}} </td>
-                  </tr>
-                  @endforeach
-               </tbody>
-            </table>
-         </div>
-         <div id="total">
-            <table>
-               <tr>
-                  <td>Order Tax</td>
-                  <td>{{$sale['TaxNet']}} </td>
-               </tr>
-               <tr>
-                  <td>Discount</td>
-                  <td>{{$sale['discount']}} </td>
-               </tr>
-               <tr>
-                  <td>Shipping</td>
-                  <td>{{$sale['shipping']}} </td>
-               </tr>
-               <tr>
-                  <td>Total</td>
-                  <td>{{$symbol}} {{$sale['GrandTotal']}} </td>
-               </tr>
+        .note-section { margin-top: 20px; border: 1px solid #000; padding: 10px; min-height: 50px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- COMPANY HEADER -->
+        <div class="header">
+            <h1 class="company-name">|| Swami Shreeji ||</h1>
+            <div class="report-title">SALE INVOICE</div>
+        </div>
 
-               <tr>
-                  <td>Paid Amount</td>
-                  <td>{{$symbol}} {{$sale['paid_amount']}} </td>
-               </tr>
+        <!-- INFO SECTION -->
+        <table class="info-table">
+            <tr>
+                <td width="60%">
+                    <div class="font-bold" style="margin-bottom: 5px;">CUSTOMER INFO:</div>
+                    <div class="client-name">{{ $sale['client_name'] }}</div>
+                    @if($sale['client_adr']) <div>{{ $sale['client_adr'] }}</div> @endif
+                    @if($sale['client_phone']) <div>Phone: {{ $sale['client_phone'] }}</div> @endif
+                </td>
+                <td width="40%">
+                    <div><strong>Invoice No :</strong> {{ $sale['Ref'] }}</div>
+                    <div><strong>Date :</strong> {{ \Carbon\Carbon::parse($sale['date'])->format('d-m-Y') }}</div>
+                    <div><strong>Warehouse :</strong> 
+                        @php
+                            $w = $sale['warehouse'];
+                            if(strpos(strtolower($w), 'shanti') !== false) echo "STM";
+                            elseif(strpos(strtolower($w), 'nirmal') !== false) echo "NP";
+                            elseif(strpos(strtolower($w), 'saral') !== false) echo "SL";
+                            elseif(strpos(strtolower($w), 'sarveshwar') !== false) echo "SP";
+                            else echo $w;
+                        @endphp
+                    </div>
+                    <div><strong>Status :</strong> {{ $sale['statut'] }}</div>
+                </td>
+            </tr>
+        </table>
 
-               <tr>
-                  <td>Due</td>
-                  <td>{{$symbol}} {{$sale['due']}} </td>
-               </tr>
-            </table>
-         </div>
-         <div id="signature">
-            @if($setting['is_invoice_footer'] && $setting['invoice_footer'] !==null)
-               <p>{{$setting['invoice_footer']}}</p>
+        <!-- PRODUCTS TABLE -->
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th width="40">SR#</th>
+                    <th>PRODUCT DESCRIPTION</th>
+                    <th width="100">QTY</th>
+                    <th width="120">AMOUNT</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($details as $index => $detail)
+                <tr>
+                    <td class="text-center">{{ $index + 1 }}</td>
+                    <td>
+                        <div class="font-bold">{{ $detail['name'] }}</div>
+                        <div style="font-size: 11px; color: #555;">Code: {{ $detail['code'] }}</div>
+                        @if($detail['is_imei'] && $detail['imei_number'] !== null)
+                            <div style="font-size: 11px;">IMEI/SN: {{ $detail['imei_number'] }}</div>
+                        @endif
+                    </td>
+                    <td class="text-center">{{ $detail['quantity'] }} {{ $detail['unitSale'] }}</td>
+                    <td class="text-right font-bold">{{ number_format($detail['total'], 2) }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+        <!-- TOTALS SECTION -->
+        <table class="footer-table">
+            <tr class="bg-grey">
+                <td>Grand Total</td>
+                <td class="text-right" style="font-size: 15px;">{{ $symbol }} {{ number_format($sale['GrandTotal'], 2) }}</td>
+            </tr>
+            @if($sale['paid_amount'] > 0)
+            <tr>
+                <td>Paid Amount</td>
+                <td class="text-right">{{ $symbol }} {{ number_format($sale['paid_amount'], 2) }}</td>
+            </tr>
+            <tr>
+                <td>Due Balance</td>
+                <td class="text-right">{{ $symbol }} {{ number_format($sale['due'], 2) }}</td>
+            </tr>
             @endif
-         </div>
-      </main>
-   </body>
+        </table>
+
+        <!-- SALE NOTE SECTION -->
+        @if(isset($sale['notes']) && $sale['notes'] !== null && $sale['notes'] !== '')
+        <div class="note-section">
+            <strong>Note:</strong><br>
+            {!! nl2br(e($sale['notes'])) !!}
+        </div>
+        @endif
+
+        <!-- GLOBAL FOOTER NOTE -->
+        @if($setting['is_invoice_footer'] && $setting['invoice_footer'] !== null)
+            <div style="margin-top: 10px; font-size: 11px; color: #666;">
+                {{ $setting['invoice_footer'] }}
+            </div>
+        @endif
+    </div>
+</body>
 </html>

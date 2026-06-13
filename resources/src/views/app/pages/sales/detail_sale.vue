@@ -120,12 +120,8 @@
                   <thead class="bg-gray-300">
                     <tr>
                       <th scope="col">{{$t('ProductName')}}</th>
-                      <th scope="col">{{$t('Net_Unit_Price')}}</th>
-                      <th scope="col">{{$t('Quantity')}}</th>
-                      <th scope="col">{{$t('UnitPrice')}}</th>
-                      <th scope="col">{{$t('Discount')}}</th>
-                      <th scope="col">{{$t('Tax')}}</th>
-                      <th scope="col">{{$t('SubTotal')}}</th>
+                      <th scope="col" class="text-center">{{$t('Quantity')}}</th>
+                      <th scope="col" class="text-right">{{$t('SubTotal')}}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -137,12 +133,8 @@
                           <small>HSN/SAC: {{detail.hsn_sac_code || 'N/A'}} | GST Unit: {{detail.gst_unit || 'N/A'}}</small>
                         </p>
                       </td>
-                      <td>{{currentUser.currency}} {{formatNumber(detail.Net_price,3)}}</td>
-                      <td>{{formatNumber(detail.quantity,2)}} {{detail.unit_sale}}</td>
-                      <td>{{currentUser.currency}} {{formatNumber(detail.price,2)}}</td>
-                      <td>{{currentUser.currency}} {{formatNumber(detail.DiscountNet,2)}}</td>
-                      <td>{{currentUser.currency}} {{formatNumber(detail.taxe,2)}}</td>
-                      <td>{{currentUser.currency}} {{detail.total.toFixed(2)}}</td>
+                      <td class="text-center">{{formatNumber(detail.quantity,2)}} {{detail.unit_sale}}</td>
+                      <td class="text-right">{{currentUser.currency}} {{detail.total.toFixed(2)}}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -151,36 +143,6 @@
             <div class="offset-md-9 col-md-3 mt-4">
               <table class="table table-striped table-sm">
                 <tbody>
-                  <tr>
-                    <td>{{$t('OrderTax')}}</td>
-                    <td>
-                      <span>{{currentUser.currency}} {{sale.TaxNet.toFixed(2)}} ({{formatNumber(sale.tax_rate,2)}} %)</span>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>CGST</td>
-                    <td>{{currentUser.currency}} {{formatNumber(sale.cgst_amount || 0,2)}}</td>
-                  </tr>
-                  <tr>
-                    <td>SGST</td>
-                    <td>{{currentUser.currency}} {{formatNumber(sale.sgst_amount || 0,2)}}</td>
-                  </tr>
-                  <tr>
-                    <td>IGST</td>
-                    <td>{{currentUser.currency}} {{formatNumber(sale.igst_amount || 0,2)}}</td>
-                  </tr>
-                  <tr>
-                    <td>Cess</td>
-                    <td>{{currentUser.currency}} {{formatNumber(sale.cess_amount || 0,2)}}</td>
-                  </tr>
-                  <tr>
-                    <td>{{$t('Discount')}}</td>
-                    <td>{{currentUser.currency}} {{sale.discount.toFixed(2)}}</td>
-                  </tr>
-                  <tr>
-                    <td>{{$t('Shipping')}}</td>
-                    <td>{{currentUser.currency}} {{sale.shipping.toFixed(2)}}</td>
-                  </tr>
                   <tr>
                     <td>
                       <span class="font-weight-bold">{{$t('Total')}}</span>
@@ -429,3 +391,35 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+  .main-content >>> h4 {
+    font-size: 2rem !important;
+  }
+  .main-content >>> h5 {
+    font-size: 1.6rem !important;
+  }
+  .main-content >>> div, 
+  .main-content >>> p, 
+  .main-content >>> span:not(.ul-btn__icon) {
+    font-size: 1.3rem !important;
+  }
+  .main-content >>> .table {
+    font-size: 1.3rem !important;
+  }
+  .main-content >>> .table th, 
+  .main-content >>> .table td {
+    padding: 12px 10px !important;
+    vertical-align: middle !important;
+  }
+  .main-content >>> .badge {
+    font-size: 1.1rem !important;
+    padding: 6px 12px !important;
+  }
+  .main-content >>> .breadcrumb ul li {
+    font-size: 1.2rem !important;
+  }
+  .main-content >>> .breadcrumb h1 {
+    font-size: 1.8rem !important;
+  }
+</style>

@@ -16,6 +16,14 @@
 
     <div class="header-part-right">
       <router-link 
+        v-if="currentUserPermissions && currentUserPermissions.includes('adjustment_add')"
+        class="btn btn-outline-secondary tn-sm btn-rounded mr-2"
+        to="/app/adjustments/store"
+      >
+      <span class="ul-btn__text ml-1">Create Production</span>
+      </router-link>
+
+      <router-link 
         v-if="currentUserPermissions && currentUserPermissions.includes('Sales_add')"
         class="btn btn-outline-primary tn-sm btn-rounded mr-2"
         to="/app/sales/store"
@@ -24,63 +32,37 @@
       </router-link>
 
       <router-link 
-        v-if="currentUserPermissions && currentUserPermissions.includes('deposit_add')"
-        class="btn btn-outline-success tn-sm btn-rounded mr-2"
-        to="/app/deposits/store"
+        v-if="currentUserPermissions && currentUserPermissions.includes('Reports_payments_Sales')"
+        class="btn btn-outline-danger tn-sm btn-rounded mr-2"
+        to="/app/receipts/store"
       >
-      <span class="ul-btn__text ml-1">Create Deposit</span>
+      <span class="ul-btn__text ml-1">Create Receipt</span>
+      </router-link>
+
+      <router-link 
+        v-if="currentUserPermissions && currentUserPermissions.includes('Purchases_add')"
+        class="btn btn-outline-success tn-sm btn-rounded mr-2"
+        to="/app/purchases/store"
+      >
+      <span class="ul-btn__text ml-1">Create Purchase</span>
+      </router-link>
+
+      <router-link 
+        v-if="currentUserPermissions && currentUserPermissions.includes('Reports_payments_Purchases')"
+        class="btn btn-outline-warning tn-sm btn-rounded mr-2"
+        to="/app/payments/store"
+      >
+      <span class="ul-btn__text ml-1">Create Payment</span>
       </router-link>
 
       <router-link 
         v-if="currentUserPermissions && currentUserPermissions.includes('transfer_add')"
-        class="btn btn-outline-info tn-sm btn-rounded"
+        class="btn btn-outline-info tn-sm btn-rounded mr-2"
         to="/app/transfers/store"
       >
       <span class="ul-btn__text ml-1">Create Transfer</span>
       </router-link>
-      <!-- Full screen toggle -->
-      <i class="i-Full-Screen header-icon d-none d-sm-inline-block" @click="handleFullScreen"></i>
-      <!-- Grid menu Dropdown -->
 
-      <!-- Notificaiton -->
-      <div class="dropdown">
-        <b-dropdown
-          id="dropdown-1" 
-          text="Dropdown Button"
-          class="m-md-2 badge-top-container d-none  d-sm-inline-block"
-          toggle-class="text-decoration-none"
-          no-caret
-          variant="link"
-        >
-          <template slot="button-content" >
-            <span class="badge badge-primary" v-if="notifs_alert > 0">1</span>
-            <i class="i-Bell text-muted header-icon"></i>
-          </template>
-          <!-- Notification dropdown -->
-          <vue-perfect-scrollbar
-            :settings="{ suppressScrollX: true, wheelPropagation: false }"
-            :class="{ open: getSideBarToggleProperties.isSideNavOpen }"
-            ref="myData"
-            class="dropdown-menu-right rtl-ps-none notification-dropdown ps scroll"
-          >
-            <div class="dropdown-item d-flex" v-if="notifs_alert > 0">
-              <div class="notification-icon">
-                <i class="i-Bell text-primary mr-1"></i>
-              </div>
-              <div class="notification-details flex-grow-1"
-              v-if="currentUserPermissions && currentUserPermissions.includes('Reports_quantity_alerts')">
-               <router-link  tag="a" to="/app/reports/quantity_alerts" >
-                <p class="text-small text-muted m-0">
-                  {{notifs_alert}} {{$t('ProductQuantityAlerts')}}
-                  </p>
-               </router-link>
-              </div>
-            </div>
-           
-          </vue-perfect-scrollbar>
-        </b-dropdown>
-      </div>
-      <!-- Notificaiton End -->
 
       <!-- User avatar dropdown -->
       <div class="dropdown">

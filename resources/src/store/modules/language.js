@@ -1,5 +1,6 @@
 import Vue from 'vue';
 import VueLocalStorage from 'vue-localstorage';
+import axios from 'axios';
 
 Vue.use(VueLocalStorage);
 
@@ -32,12 +33,15 @@ export default {
       // Update localStorage & state
       commit('SET_LANGUAGE', selected);
 
-      // ✅ Also update backend
-       try {
-         await axios.post(`/languages_setting/set-default/${selected}`);
-          } catch (error) {
-            console.warn('Failed to sync default language to backend:', error);
-          }
+      // Sync to backend only if user is authenticated (token exists in axios defaults)
+      try {
+        if (axios.defaults.headers.common['Authorization']) {
+          await axios.post(`/languages_setting/set-default/${selected}`);
+        }
+      } catch (error) {
+        // Silently fail — user may not be authenticated yet
+        console.warn('Failed to sync default language to backend:', error);
+      }
     },
   }
 

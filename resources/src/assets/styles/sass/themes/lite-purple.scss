@@ -1,5 +1,5 @@
 @import "../variables";
-@import "colors";
+@import "./colors";
 
 $blue: map-get($solid-colors, "blue") !default;
 $indigo: map-get($solid-colors, "indigo") !default;

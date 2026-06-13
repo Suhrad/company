@@ -514,11 +514,9 @@ const baseRoutes = [
                     {
                         name: "detail_purchase",
                         path: "detail/:id",
-                        component: () =>
-                            import(
-                                /* webpackChunkName: "detail_purchase" */
-                                "./views/app/pages/purchases/detail_purchase"
-                            )
+                        redirect: to => {
+                            return { name: "edit_purchase", params: { id: to.params.id } };
+                        }
                     }
                 ]
             },
@@ -567,10 +565,9 @@ const baseRoutes = [
                     {
                         name: "detail_sale",
                         path: "detail/:id",
-                        component: () =>
-                            import(
-                                /* webpackChunkName: "detail_sale" */ "./views/app/pages/sales/detail_sale"
-                            )
+                        redirect: to => {
+                            return { name: "edit_sale", params: { id: to.params.id } };
+                        }
                     },
                     {
                         name: "saral_sales_import",
@@ -586,6 +583,62 @@ const baseRoutes = [
                         component: () =>
                             import(
                                 /* webpackChunkName: "shipment" */ "./views/app/pages/sales/shipments"
+                            )
+                    }
+                ]
+            },
+
+            // Payments
+            {
+                path: "/app/payments",
+                component: () =>
+                    import(
+                        /* webpackChunkName: "payments" */ "./views/app/pages/purchases"
+                    ),
+                redirect: "/app/payments/list",
+                children: [
+                    {
+                        name: "index_payments",
+                        path: "list",
+                        component: () =>
+                            import(
+                                /* webpackChunkName: "payments_purchases" */ "./views/app/pages/reports/payments/payments_purchases"
+                            )
+                    },
+                    {
+                        name: "store_payment",
+                        path: "store",
+                        component: () =>
+                            import(
+                                /* webpackChunkName: "store_payment" */ "./views/app/pages/reports/payments/create_payment"
+                            )
+                    }
+                ]
+            },
+
+            // Receipts
+            {
+                path: "/app/receipts",
+                component: () =>
+                    import(
+                        /* webpackChunkName: "receipts" */ "./views/app/pages/sales"
+                    ),
+                redirect: "/app/receipts/list",
+                children: [
+                    {
+                        name: "index_receipts",
+                        path: "list",
+                        component: () =>
+                            import(
+                                /* webpackChunkName: "payments_sales" */ "./views/app/pages/reports/payments/payments_sales"
+                            )
+                    },
+                    {
+                        name: "store_receipt",
+                        path: "store",
+                        component: () =>
+                            import(
+                                /* webpackChunkName: "store_receipt" */ "./views/app/pages/reports/payments/create_receipt"
                             )
                     }
                 ]
@@ -1504,51 +1557,43 @@ const baseRoutes = [
                             )
                     },
 
+                    
                     {
-                        name: "product_purchases_report",
-                        path: "product_purchases_report",
-                        component: () =>
-                            import(
-                                /* webpackChunkName: "product_purchases_report" */
-                                "./views/app/pages/reports/product_purchases_report"
-                            )
-                    },
-
-                    {
-                        name: "customers_report",
                         path: "customers_report",
-                        component: () =>
-                            import(
-                                /* webpackChunkName: "customers_report" */
-                                "./views/app/pages/reports/customers_report"
-                            )
+                        redirect: { name: "companies_report" }
                     },
                     {
-                        name: "detail_customer_report",
                         path: "detail_customer/:id",
-                        component: () =>
-                            import(
-                                /* webpackChunkName: "detail_customer_report" */
-                                "./views/app/pages/reports/detail_Customer_Report"
-                            )
+                        redirect: to => {
+                            return { name: "detail_company_report", params: { id: to.params.id, type: "company" } };
+                        }
                     },
-
                     {
-                        name: "providers_report",
                         path: "providers_report",
+                        redirect: { name: "companies_report" }
+                    },
+                    {
+                        path: "detail_supplier/:id",
+                        redirect: to => {
+                            return { name: "detail_company_report", params: { id: to.params.id, type: "company" } };
+                        }
+                    },
+                    {
+                        name: "companies_report",
+                        path: "companies_report",
                         component: () =>
                             import(
-                                /* webpackChunkName: "providers_report" */
-                                "./views/app/pages/reports/providers_report"
+                                /* webpackChunkName: "companies_report" */
+                                "./views/app/pages/reports/companies_report"
                             )
                     },
                     {
-                        name: "detail_supplier_report",
-                        path: "detail_supplier/:id",
+                        name: "detail_company_report",
+                        path: "detail_company/:id/:type",
                         component: () =>
                             import(
-                                /* webpackChunkName: "detail_supplier_report" */
-                                "./views/app/pages/reports/detail_Supplier_Report"
+                                /* webpackChunkName: "detail_company_report" */
+                                "./views/app/pages/reports/detail_company_report"
                             )
                     },
 
@@ -1638,6 +1683,14 @@ const baseRoutes = [
                                 "./views/app/pages/reports/report_error_logs"
                             )
                     },
+                    {
+                        name: "Job_Work_Report",
+                        path: "job_work",
+                        component: () =>
+                            import(
+                                /* webpackChunkName: "Job_Work_Report" */ "./views/app/pages/reports/Job_Work_Report"
+                            )
+                    }
                 ]
             },
 
@@ -1648,6 +1701,74 @@ const baseRoutes = [
                     import(
                         /* webpackChunkName: "profile" */ "./views/app/pages/profile"
                     )
+            },
+
+            // Job Work
+            {
+                path: "/app/job_work",
+                component: () =>
+                    import(
+                        /* webpackChunkName: "job_work" */ "./views/app/pages/job_work"
+                    ),
+                redirect: "/app/job_work/list",
+                children: [
+                    {
+                        name: "index_job_work",
+                        path: "list",
+                        component: () =>
+                            import(
+                                /* webpackChunkName: "index_job_work" */ "./views/app/pages/job_work/index_job_work"
+                            )
+                    },
+                    {
+                        name: "create_job_work_issue",
+                        path: "issue",
+                        component: () =>
+                            import(
+                                /* webpackChunkName: "create_job_work_issue" */ "./views/app/pages/job_work/create_issue"
+                            )
+                    },
+                    {
+                        name: "create_job_work_receipt",
+                        path: "receipt",
+                        component: () =>
+                            import(
+                                /* webpackChunkName: "create_job_work_receipt" */ "./views/app/pages/job_work/create_receipt"
+                            )
+                    },
+                    {
+                        name: "edit_job_work_issue",
+                        path: "edit/issue/:id",
+                        component: () =>
+                            import(
+                                /* webpackChunkName: "edit_job_work_issue" */ "./views/app/pages/job_work/edit_issue"
+                            )
+                    },
+                    {
+                        name: "edit_job_work_receipt",
+                        path: "edit/receipt/:id",
+                        component: () =>
+                            import(
+                                /* webpackChunkName: "edit_job_work_receipt" */ "./views/app/pages/job_work/edit_receipt"
+                            )
+                    },
+                    {
+                        name: "edit_job_work",
+                        path: "edit/:id",
+                        component: () =>
+                            import(
+                                /* webpackChunkName: "edit_job_work" */ "./views/app/pages/job_work/edit_job_work"
+                            )
+                    },
+                    {
+                        name: "detail_job_work",
+                        path: "detail/:id",
+                        component: () =>
+                            import(
+                                /* webpackChunkName: "detail_job_work" */ "./views/app/pages/job_work/detail_job_work"
+                            )
+                    }
+                ]
             }
         ]
     },

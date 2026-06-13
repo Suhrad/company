@@ -41,6 +41,12 @@
 
           <!-- Actions -->
           <div class="ml-auto mb-2 d-flex">
+            <router-link
+              to="/app/payments/store"
+              class="btn btn-primary btn-sm btn-pill mr-2 d-flex align-items-center"
+            >
+              <i class="i-Add mr-1"></i> Create Payment
+            </router-link>
             <b-button size="sm" variant="outline-info" class="btn-pill mr-2" v-b-toggle.sidebar-right>
               <i class="i-Filter-2 mr-1"></i>{{$t('Filter')}}
             </b-button>
@@ -103,11 +109,146 @@
           styleClass="table-hover tableOne vgt-table mt-2"
         >
           <template slot="table-row" slot-scope="props">
-            <span>{{ props.formattedRow[props.column.field] }}</span>
+            <span v-if="props.column.field === 'actions'">
+              <a
+                v-if="currentUserPermissions && currentUserPermissions.includes('payment_purchases_edit')"
+                @click="Edit_Payment(props.row)"
+                class="cursor-pointer text-success mr-2"
+                title="Edit"
+              >
+                <i class="i-Pen-2 text-20"></i>
+              </a>
+              <a
+                v-if="currentUserPermissions && currentUserPermissions.includes('payment_purchases_delete')"
+                @click="Remove_Payment(props.row.id)"
+                class="cursor-pointer text-danger"
+                title="Delete"
+              >
+                <i class="i-Close text-20"></i>
+              </a>
+            </span>
+            <span v-else>{{ props.formattedRow[props.column.field] }}</span>
           </template>
         </vue-good-table>
       </b-card>
     </div>
+
+    <!-- Edit Payment Modal -->
+    <validation-observer ref="Add_payment">
+      <b-modal
+        hide-footer
+        size="lg"
+        id="Add_Payment"
+        :title="$t('EditPayment')"
+      >
+        <b-form @submit.prevent="Submit_Payment">
+          <b-row>
+            <!-- date -->
+            <b-col lg="6" md="12" sm="12">
+              <validation-provider
+                name="date"
+                :rules="{ required: true}"
+                v-slot="validationContext"
+              >
+                <b-form-group :label="$t('date')">
+                  <b-form-input
+                    label="date"
+                    :state="getValidationState(validationContext)"
+                    aria-describedby="date-feedback"
+                    v-model="payment.date"
+                    type="date"
+                  ></b-form-input>
+                  <b-form-invalid-feedback id="date-feedback">{{ validationContext.errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Reference  -->
+            <b-col lg="6" md="12" sm="12">
+              <b-form-group :label="$t('Reference')">
+                <b-form-input
+                  disabled="disabled"
+                  label="Reference"
+                  :placeholder="$t('Reference')"
+                  v-model="payment.Ref"
+                ></b-form-input>
+              </b-form-group>
+            </b-col>
+
+             <!-- Payment choice -->
+             <b-col lg="6" md="12" sm="12">
+              <validation-provider name="Payment choice" :rules="{ required: true}">
+                <b-form-group slot-scope="{ valid, errors }" :label="$t('Paymentchoice')">
+                  <v-select
+                    :class="{'is-invalid': !!errors.length}"
+                    :state="errors[0] ? false : (valid ? true : null)"
+                    v-model="payment.payment_method_id"
+                    :reduce="label => label.value"
+                    :placeholder="$t('PleaseSelect')"
+                    :options="payment_methods.map(pm => ({label: pm.name, value: pm.id}))"
+                  ></v-select>
+                  <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Paying Amount  -->
+            <b-col lg="6" md="12" sm="12">
+              <validation-provider
+                name="Amount"
+                :rules="{ required: true , regex: /^\d*\.?\d*$/}"
+                v-slot="validationContext"
+              >
+                <b-form-group :label="$t('Paying_Amount')">
+                  <b-form-input
+                    label="Amount"
+                    :placeholder="$t('Paying_Amount')"
+                    v-model.number="payment.montant"
+                    :state="getValidationState(validationContext)"
+                    aria-describedby="Amount-feedback"
+                  ></b-form-input>
+                  <b-form-invalid-feedback id="Amount-feedback">{{ validationContext.errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Account -->
+            <b-col lg="6" md="6" sm="12">
+              <validation-provider name="Account">
+                <b-form-group slot-scope="{ valid, errors }" :label="$t('Account')">
+                  <v-select
+                    :class="{'is-invalid': !!errors.length}"
+                    :state="errors[0] ? false : (valid ? true : null)"
+                    v-model="payment.account_id"
+                    :reduce="label => label.value"
+                    :placeholder="$t('Choose_Account')"
+                    :options="accounts.map(acc => ({label: acc.account_name, value: acc.id}))"
+                  />
+                  <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Note -->
+            <b-col lg="6" md="6" sm="12">
+              <b-form-group :label="$t('Note')">
+                <b-form-textarea id="textarea" v-model="payment.notes" rows="3" max-rows="6"></b-form-textarea>
+              </b-form-group>
+            </b-col>
+            <b-col md="12" class="mt-3">
+              <b-button
+                variant="primary"
+                type="submit"
+                :disabled="paymentProcessing"
+              ><i class="i-Yes me-2 font-weight-bold"></i> {{$t('submit')}}</b-button>
+              <div v-once class="typo__p" v-if="paymentProcessing">
+                <div class="spinner sm spinner-primary mt-3"></div>
+              </div>
+            </b-col>
+          </b-row>
+        </b-form>
+      </b-modal>
+    </validation-observer>
 
     <!-- Sidebar Filter -->
     <b-sidebar id="sidebar-right" :title="$t('Filter')" bg-variant="white" right shadow>
@@ -173,6 +314,7 @@
 </template>
 
 <script>
+import { mapGetters } from "vuex";
 import NProgress from "nprogress";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -212,7 +354,21 @@ export default {
       suppliers: [],
       purchases: [],
       payment_methods: [],
+      accounts: [],
       rows: [{ children: [] }],
+
+      // modal state
+      payment: {
+        id: "",
+        date: "",
+        Ref: "",
+        purchase_id: "",
+        payment_method_id: "",
+        montant: 0,
+        notes: "",
+        account_id: ""
+      },
+      paymentProcessing: false,
 
       // filters
       Filter_Supplier: "",
@@ -235,6 +391,7 @@ export default {
   },
 
   computed: {
+    ...mapGetters(["currentUserPermissions"]),
     columns() {
       return [
         { label: this.$t("date"),            field: "date",            tdClass:"text-left", thClass:"text-left" },
@@ -243,7 +400,8 @@ export default {
         { label: this.$t("Supplier"),        field: "provider_name",   tdClass:"text-left", thClass:"text-left" },
         { label: this.$t("ModePaiement"),    field: "payment_method",  tdClass:"text-left", thClass:"text-left" },
         { label: this.$t("Account"),         field: "account_name",    tdClass:"text-left", thClass:"text-left", sortable:false },
-        { label: this.$t("Amount"),          field: "montant",         type:"decimal", headerField: this.sumCount, tdClass:"text-left", thClass:"text-left" }
+        { label: this.$t("Amount"),          field: "montant",         type:"decimal", headerField: this.sumCount, tdClass:"text-left", thClass:"text-left" },
+        { label: this.$t("Action"),          field: "actions",         html: true, tdClass:"text-right", thClass:"text-right", sortable:false }
       ];
     },
 
@@ -358,14 +516,107 @@ export default {
       this.Payments_Purchases(1);
     },
 
-    // --- font + RTL helpers (safe to reuse in other reports)
+    // Edit/Delete handlers
+    getValidationState({ dirty, validated, valid = null }) {
+      return dirty || validated ? valid : null;
+    },
+
+    Edit_Payment(payment_data) {
+      this.payment = {
+        id: payment_data.id,
+        date: payment_data.date,
+        Ref: payment_data.Ref,
+        purchase_id: payment_data.purchase_id,
+        payment_method_id: payment_data.payment_method_id,
+        montant: payment_data.montant,
+        notes: payment_data.notes,
+        account_id: payment_data.account_id
+      };
+      this.$bvModal.show("Add_Payment");
+    },
+
+    Submit_Payment() {
+      this.$refs.Add_payment.validate().then(success => {
+        if (!success) return;
+        this.paymentProcessing = true;
+        NProgress.start();
+        NProgress.set(0.1);
+
+        axios.put("payment_purchase/" + this.payment.id, {
+          date: this.payment.date,
+          montant: this.payment.montant,
+          account_id: this.payment.account_id,
+          payment_method_id: this.payment.payment_method_id,
+          purchase_id: this.payment.purchase_id,
+          notes: this.payment.notes,
+          change: 0
+        })
+        .then(() => {
+          this.paymentProcessing = false;
+          NProgress.done();
+          this.$bvModal.hide("Add_Payment");
+          this.makeToast("success", this.$t("Payment_updated_successfully"), this.$t("Success"));
+          this.Payments_Purchases(this.serverParams.page);
+        })
+        .catch(() => {
+          this.paymentProcessing = false;
+          NProgress.done();
+          this.makeToast("danger", this.$t("Failed_to_update_payment"), this.$t("Failed"));
+        });
+      });
+    },
+
+    Remove_Payment(id) {
+      this.$swal({
+        title: this.$t("Delete_Title"),
+        text: this.$t("Delete_Text"),
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        cancelButtonText: this.$t("Delete_cancelButtonText"),
+        confirmButtonText: this.$t("Delete_confirmButtonText")
+      }).then(result => {
+        if (result.value) {
+          NProgress.start();
+          NProgress.set(0.1);
+          axios
+            .delete("payment_purchase/" + id)
+            .then(() => {
+              this.$swal(
+                this.$t("Delete_Deleted"),
+                this.$t("Deleted_in_successfully"),
+                "success"
+              );
+              this.Payments_Purchases(this.serverParams.page);
+            })
+            .catch(() => {
+              NProgress.done();
+              this.$swal(
+                this.$t("Delete_Failed"),
+                this.$t("Delete_Therewassomethingwronge"),
+                "warning"
+              );
+            });
+        }
+      });
+    },
+
+    makeToast(variant, msg, title) {
+      this.$root.$bvToast.toast(msg, {
+        title: title,
+        variant: variant,
+        solid: true
+      });
+    },
+
+    // --- font + RTL helpers
     useVazirmatn(pdf){
-      // Put Vazirmatn-Bold.ttf in: /public/fonts/Vazirmatn-Bold.ttf
       const fontPath = "/fonts/Vazirmatn-Bold.ttf";
       try {
         pdf.addFont(fontPath, "Vazirmatn", "normal");
         pdf.addFont(fontPath, "Vazirmatn", "bold");
-      } catch(e) { /* ignore if already added */ }
+      } catch(e) { }
       pdf.setFont("Vazirmatn", "normal");
     },
     isRTL(){
@@ -373,7 +624,6 @@ export default {
             (typeof document !== 'undefined' && document.documentElement.dir === 'rtl');
     },
 
-    // keep your existing behavior but safer fallbacks
     findLabel(list, id, key='name'){
       if (!id) return this.$t('All');
       const x = (list||[]).find(i => String(i.id) === String(id));
@@ -385,11 +635,10 @@ export default {
       return x ? (x.Ref || this.$t('All')) : this.$t('All');
     },
 
-    // --- Export PDF (Arabic-safe, shows filters & date range)
+    // --- Export PDF (Arabic-safe)
     async exportPDF(){
       NProgress.start(); NProgress.set(0.2);
       try{
-        // date helpers (fallback if this.fmt isn't defined)
         const fmtLocal = (d) => {
           if (!d) return '';
           if (this.fmt) return this.fmt(d);
@@ -399,10 +648,9 @@ export default {
         const from = this.startDate || fmtLocal(this.dateRange?.startDate);
         const to   = this.endDate   || fmtLocal(this.dateRange?.endDate);
 
-        // fetch ALL filtered rows
         const qs = new URLSearchParams({
           page: '1',
-          limit: '-1', // all rows
+          limit: '-1',
           SortField: this.serverParams?.sort?.field || 'id',
           SortType:  this.serverParams?.sort?.type  || 'desc',
           search: this.search || '',
@@ -416,20 +664,17 @@ export default {
         const { data } = await axios.get(`payment_purchase?${qs}`).catch(()=>({data:{}}));
         const items = Array.isArray(data?.payments) ? data.payments : [];
 
-        // Build PDF
         const pdf = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
         this.useVazirmatn(pdf);
         const rtl = this.isRTL();
         const margin = 40;
         const pageW = pdf.internal.pageSize.getWidth();
 
-        // Title
         pdf.setFont('Vazirmatn','bold'); pdf.setFontSize(16);
         const title = this.$t('Payment_Purchases');
         rtl ? pdf.text(title, pageW - margin, 40, { align:'right' })
             : pdf.text(title, margin, 40);
 
-        // Header (filters + range), auto-wrap for long text
         pdf.setFont('Vazirmatn','normal'); pdf.setFontSize(10);
         const supplierLabel = this.findLabel(this.suppliers, this.Filter_Supplier, 'name');
         const purchaseLabel = this.findPurchaseRef(this.Filter_purchase);
@@ -449,7 +694,6 @@ export default {
         rtl ? pdf.text(wrapped, pageW - margin, 58, { align:'right' })
             : pdf.text(wrapped, margin, 58);
 
-        // Table
         const head = [[
           this.$t('date'),
           this.$t('Reference'),
@@ -493,15 +737,13 @@ export default {
             halign: rtl ? 'right' : 'left',
           },
           columnStyles: {
-            6: { halign: 'right' } // Amount column
+            6: { halign: 'right' }
           },
-          // Totals row
           foot: [[
             { content: this.$t('Totals'), colSpan: 6, styles:{ halign: 'right', fontStyle:'bold' } },
             { content: total.toFixed(2),  styles:{ halign: 'right', fontStyle:'bold' } }
           ]],
           didDrawPage: (d) => {
-            // page x / N
             pdf.setFont('Vazirmatn','normal'); pdf.setFontSize(8);
             pdf.text(`${d.pageNumber} / ${pdf.internal.getNumberOfPages()}`,
               pageW - margin, pdf.internal.pageSize.getHeight() - 14, { align:'right' });
@@ -513,9 +755,6 @@ export default {
         NProgress.done();
       }
     },
-
-
-
 
     // Fetch
     Payments_Purchases(page) {
@@ -540,6 +779,7 @@ export default {
           this.suppliers = data.suppliers || [];
           this.purchases = data.purchases || [];
           this.payment_methods = data.payment_methods || [];
+          this.accounts = data.accounts || [];
           this.totalRows = Number(data.totalRows || 0);
           this.rows[0].children = this.payments;
 

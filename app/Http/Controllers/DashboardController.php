@@ -421,6 +421,42 @@ class DashboardController extends Controller
 
         $data['return_purchases'] = number_format($data['return_purchases'], 2, '.', ',');
 
+        // Finished Goods stock (Category: 'Finished Goods')
+        $finished_goods_stock = DB::table('product_warehouse')
+            ->join('products', 'product_warehouse.product_id', '=', 'products.id')
+            ->join('categories', 'products.category_id', '=', 'categories.id')
+            ->where('categories.name', '=', 'Finished Goods')
+            ->whereNull('product_warehouse.deleted_at')
+            ->whereNull('products.deleted_at')
+            ->where(function ($query) use ($warehouse_id, $array_warehouses_id) {
+                if ($warehouse_id !== 0) {
+                    return $query->where('product_warehouse.warehouse_id', $warehouse_id);
+                } else {
+                    return $query->whereIn('product_warehouse.warehouse_id', $array_warehouses_id);
+                }
+            })
+            ->sum('product_warehouse.qte');
+
+        $data['finished_goods_stock'] = number_format($finished_goods_stock, 2, '.', ',');
+
+        // Raw Materials stock (Category: 'Raw Materials')
+        $raw_materials_stock = DB::table('product_warehouse')
+            ->join('products', 'product_warehouse.product_id', '=', 'products.id')
+            ->join('categories', 'products.category_id', '=', 'categories.id')
+            ->where('categories.name', '=', 'Raw Materials')
+            ->whereNull('product_warehouse.deleted_at')
+            ->whereNull('products.deleted_at')
+            ->where(function ($query) use ($warehouse_id, $array_warehouses_id) {
+                if ($warehouse_id !== 0) {
+                    return $query->where('product_warehouse.warehouse_id', $warehouse_id);
+                } else {
+                    return $query->whereIn('product_warehouse.warehouse_id', $array_warehouses_id);
+                }
+            })
+            ->sum('product_warehouse.qte');
+
+        $data['raw_materials_stock'] = number_format($raw_materials_stock, 2, '.', ',');
+
         $last_sales = [];
 
         //last sales

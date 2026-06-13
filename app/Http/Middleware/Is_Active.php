@@ -16,8 +16,14 @@ class Is_Active
         $user = auth()->user() ?? auth('api')->user();
         
         if($user && !$user->statut){
+            // For API requests, return JSON 403
+            if ($request->expectsJson() || $request->is('api/*')) {
+                if (auth()->check()) auth()->logout();
+                return response()->json(['message' => 'Account is inactive.'], 403);
+            }
+            // For web login attempts, logout and redirect back with error
             if (auth()->check()) auth()->logout();
-            return response()->json(['message' => 'Account is inactive.'], 403);
+            return redirect('/login')->withErrors(['email' => 'Your account is inactive. Please contact the administrator.']);
         }
         
         return $next($request);

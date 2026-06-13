@@ -192,6 +192,67 @@
               </vue-good-table>
             </b-tab>
 
+            <!-- Purchases Table -->
+            <b-tab :title="$t('Purchases')">
+              <vue-good-table
+                mode="remote"
+                :columns="columns_purchases"
+                :totalRows="totalRows_purchases"
+                :rows="purchases"
+                @on-page-change="PageChangePurchases"
+                @on-per-page-change="onPerPageChangePurchases"
+                @on-search="onSearch_Purchases"
+                :search-options="{
+                    placeholder: $t('Search_this_table'),
+                    enabled: true,
+                }"
+                :pagination-options="{
+                  enabled: true,
+                  mode: 'records',
+                  nextLabel: 'next',
+                  prevLabel: 'prev',
+                }"
+                styleClass="order-table vgt-table mt-2"
+              >
+               <div slot="table-actions" class="mt-2 mb-3">
+                <b-button @click="Purchases_PDF()" size="sm" variant="outline-success ripple m-1">
+                  <i class="i-File-Copy"></i> PDF
+                </b-button>
+              </div>
+                <template slot="table-row" slot-scope="props">
+                  <div v-if="props.column.field == 'statut'">
+                    <span
+                      v-if="props.row.statut == 'received'"
+                      class="badge badge-outline-success"
+                    >{{$t('Received')}}</span>
+                    <span
+                      v-else-if="props.row.statut == 'pending'"
+                      class="badge badge-outline-info"
+                    >{{$t('Pending')}}</span>
+                    <span v-else class="badge badge-outline-warning">{{$t('Ordered')}}</span>
+                  </div>
+                  <div v-else-if="props.column.field == 'payment_status'">
+                    <span
+                      v-if="props.row.payment_status == 'paid'"
+                      class="badge badge-outline-success"
+                    >{{$t('Paid')}}</span>
+                    <span
+                      v-else-if="props.row.payment_status == 'partial'"
+                      class="badge badge-outline-primary"
+                    >{{$t('partial')}}</span>
+                    <span v-else class="badge badge-outline-warning">{{$t('Unpaid')}}</span>
+                  </div>
+                   <div v-else-if="props.column.field == 'Ref'">
+                    <router-link
+                      :to="'/app/purchases/detail/'+props.row.id"
+                    >
+                      <span class="ul-btn__text ml-1">{{props.row.Ref}}</span>
+                    </router-link>
+                  </div>
+                </template>
+              </vue-good-table>
+            </b-tab>
+
             <!-- Returns Sale Table -->
             <b-tab :title="$t('SalesReturn')">
               <vue-good-table
@@ -350,6 +411,75 @@
                 </b-button>
               </div>
               </vue-good-table>
+             </b-tab>
+            <!-- Ledger Table -->
+            <b-tab :title="$t('Ledger')">
+              <b-row class="mb-3 mt-3">
+                  <b-col md="4">
+                      <b-card class="text-center bg-light">
+                          <h6 class="text-muted mb-1">Total Debit</h6>
+                          <h4 class="text-danger font-weight-bold">{{currentUser.currency}} {{formatNumber(ledger_totals.debit, 2)}}</h4>
+                      </b-card>
+                  </b-col>
+                  <b-col md="4">
+                      <b-card class="text-center bg-light">
+                          <h6 class="text-muted mb-1">Total Credit</h6>
+                          <h4 class="text-success font-weight-bold">{{currentUser.currency}} {{formatNumber(ledger_totals.credit, 2)}}</h4>
+                      </b-card>
+                  </b-col>
+                  <b-col md="4">
+                      <b-card class="text-center bg-light">
+                          <h6 class="text-muted mb-1">Final Balance</h6>
+                          <h4 :class="ledger_totals.balance >= 0 ? 'text-success' : 'text-danger'" class="font-weight-bold">
+                              {{currentUser.currency}} {{formatNumber(ledger_totals.balance, 2)}}
+                          </h4>
+                      </b-card>
+                  </b-col>
+              </b-row>
+              <vue-good-table
+                mode="remote"
+                :columns="columns_ledger"
+                :rows="ledger"
+                @on-search="onSearch_Ledger"
+                :search-options="{
+                    placeholder: $t('Search_this_table'),
+                    enabled: true,
+                }"
+                :pagination-options="{
+                  enabled: true,
+                  mode: 'records',
+                  nextLabel: 'next',
+                  prevLabel: 'prev',
+                }"
+                styleClass="order-table vgt-table mt-2"
+              >
+               <div slot="table-actions" class="mt-2 mb-3">
+                <b-button @click="Ledger_PDF()" size="sm" variant="outline-success ripple m-1">
+                  <i class="i-File-Copy"></i> PDF
+                </b-button>
+              </div>
+                <template slot="table-row" slot-scope="props">
+                  <div v-if="props.column.field == 'type'">
+                    <span v-if="props.row.type == 'Sale'" class="badge badge-outline-success">Sale</span>
+                    <span v-else-if="props.row.type == 'Purchase'" class="badge badge-outline-danger">Purchase</span>
+                    <span v-else-if="props.row.type == 'Expense'" class="badge badge-outline-warning">Expense</span>
+                    <span v-else-if="props.row.type == 'Deposit'" class="badge badge-outline-info">Deposit</span>
+                  </div>
+                  <div v-else-if="props.column.field == 'credit'">
+                    <span v-if="props.row.credit > 0" class="text-success">{{currentUser.currency}} {{formatNumber(props.row.credit, 2)}}</span>
+                    <span v-else>---</span>
+                  </div>
+                  <div v-else-if="props.column.field == 'debit'">
+                    <span v-if="props.row.debit > 0" class="text-danger">{{currentUser.currency}} {{formatNumber(props.row.debit, 2)}}</span>
+                    <span v-else>---</span>
+                  </div>
+                  <div v-else-if="props.column.field == 'balance'">
+                    <span :class="props.row.balance >= 0 ? 'text-success' : 'text-danger'">
+                        {{currentUser.currency}} {{formatNumber(props.row.balance, 2)}}
+                    </span>
+                  </div>
+                </template>
+              </vue-good-table>
             </b-tab>
           </b-tabs>
         </b-card>
@@ -404,32 +534,47 @@ export default {
       Stock_value: {},
       totalRows_quotations: "",
       totalRows_sales: "",
+      totalRows_purchases: "",
       totalRows_Return_sale: "",
       totalRows_Return_purchase: "",
       totalRows_Expense: "",
+      totalRows_ledger: "",
       limit_quotations: "10",
       limit_returns_Sale: "10",
       limit_returns_Purchase: "10",
       limit_sales: "10",
+      limit_purchases: "10",
       limit_expenses: "10",
+      limit_ledger: "10",
       search_quotation: "",
       search_sale: "",
+      search_purchase: "",
       search_expense: "",
+      search_ledger: "",
       search_return_Sale: "",
       search_return_Purchase: "",
       sales_page: 1,
       quotations_page: 1,
+      purchases_page: 1,
       Return_sale_page: 1,
       Return_purchase_page: 1,
       Expense_page: 1,
+      ledger_page: 1,
       isLoading: true,
       Filter_warehouse: "",
       sales: [],
       quotations: [],
+      purchases: [],
       warehouses: [],
       expenses: [],
+      ledger: [],
       returns_sale: [],
       returns_purchase: [],
+      ledger_totals: {
+        credit: 0,
+        debit: 0,
+        balance: 0
+      },
       total: {
         sales: "",
         purchases: "",
@@ -451,6 +596,13 @@ export default {
           sortable: false
         },
         {
+          label: "Items",
+          field: "items",
+          tdClass: "text-left",
+          thClass: "text-left",
+          sortable: false
+        },
+        {
           label: this.$t("Reference"),
           field: "Ref",
           tdClass: "text-left",
@@ -461,13 +613,15 @@ export default {
           label: this.$t("Customer"),
           field: "client_name",
           tdClass: "text-left",
-          thClass: "text-left"
+          thClass: "text-left",
+          sortable: false
         },
         {
           label: this.$t("warehouse"),
           field: "warehouse_name",
           tdClass: "text-left",
-          thClass: "text-left"
+          thClass: "text-left",
+          sortable: false
         },
         {
           label: this.$t("Total"),
@@ -491,6 +645,13 @@ export default {
         {
           label: this.$t("Reference"),
           field: "Ref",
+          tdClass: "text-left",
+          thClass: "text-left",
+          sortable: false
+        },
+        {
+          label: "Items",
+          field: "items",
           tdClass: "text-left",
           thClass: "text-left",
           sortable: false
@@ -557,11 +718,88 @@ export default {
         },
       ];
     },
+    columns_purchases() {
+      return [
+        {
+          label: this.$t("Reference"),
+          field: "Ref",
+          tdClass: "text-left",
+          thClass: "text-left",
+          sortable: false
+        },
+        {
+          label: "Items",
+          field: "items",
+          tdClass: "text-left",
+          thClass: "text-left",
+          sortable: false
+        },
+        {
+          label: this.$t("Supplier"),
+          field: "provider_name",
+          tdClass: "text-left",
+          thClass: "text-left"
+        },
+        {
+          label: this.$t("warehouse"),
+          field: "warehouse_name",
+          tdClass: "text-left",
+          thClass: "text-left"
+        },
+        {
+          label: this.$t("Total"),
+          field: "GrandTotal",
+          type: "decimal",
+          tdClass: "text-left",
+          thClass: "text-left",
+          sortable: false
+        },
+        {
+          label: this.$t("Paid"),
+          field: "paid_amount",
+          type: "decimal",
+          tdClass: "text-left",
+          thClass: "text-left",
+          sortable: false
+        },
+        {
+          label: this.$t("Due"),
+          field: "due",
+          type: "decimal",
+          tdClass: "text-left",
+          thClass: "text-left",
+          sortable: false
+        },
+        {
+          label: this.$t("Status"),
+          field: "statut",
+          html: true,
+          tdClass: "text-left",
+          thClass: "text-left",
+          sortable: false
+        },
+        {
+          label: this.$t("PaymentStatus"),
+          field: "payment_status",
+          html: true,
+          tdClass: "text-left",
+          thClass: "text-left",
+          sortable: false
+        }
+      ];
+    },
     columns_returns_sale() {
       return [
         {
           label: this.$t("Reference"),
           field: "Ref",
+          tdClass: "text-left",
+          thClass: "text-left",
+          sortable: false
+        },
+        {
+          label: "Items",
+          field: "items",
           tdClass: "text-left",
           thClass: "text-left",
           sortable: false
@@ -638,6 +876,13 @@ export default {
           sortable: false
         },
         {
+          label: "Items",
+          field: "items",
+          tdClass: "text-left",
+          thClass: "text-left",
+          sortable: false
+        },
+        {
           label: this.$t("Supplier"),
           field: "provider_name",
           tdClass: "text-left",
@@ -697,6 +942,17 @@ export default {
           thClass: "text-left",
           sortable: false
         }
+      ];
+    },
+    columns_ledger() {
+      return [
+        { label: this.$t("date"), field: "date", tdClass: "text-left", thClass: "text-left", sortable: false },
+        { label: this.$t("Reference"), field: "Ref", tdClass: "text-left", thClass: "text-left", sortable: false },
+        { label: this.$t("Type"), field: "type", tdClass: "text-left", thClass: "text-left", sortable: false },
+        { label: this.$t("Details"), field: "description", tdClass: "text-left", thClass: "text-left", sortable: false },
+        { label: this.$t("Debit"), field: "debit", tdClass: "text-right", thClass: "text-right", sortable: false },
+        { label: this.$t("Credit"), field: "credit", tdClass: "text-right", thClass: "text-right", sortable: false },
+        { label: this.$t("Balance"), field: "balance", tdClass: "text-right font-weight-bold", thClass: "text-right", sortable: false },
       ];
     },
     columns_Expense() {
@@ -789,6 +1045,35 @@ export default {
       });
 
       pdf.save("Expense_List.pdf");
+    },
+
+    //-------------------------------- Ledger PDF -----------------------\\
+    Ledger_PDF() {
+       window.open(`/report/ledger_warehouse_pdf?warehouse_id=${this.Filter_warehouse}`, '_blank');
+    },
+
+    onSearch_Ledger(value) {
+      this.search_ledger = value.searchTerm;
+    },
+
+    Get_Ledger(page) {
+      axios
+        .get("report/ledger_warehouse?warehouse_id=" + this.Filter_warehouse)
+        .then(response => {
+          this.ledger = response.data.ledger;
+          this.ledger_totals = {
+            credit: response.data.total_credit,
+            debit: response.data.total_debit,
+            balance: response.data.balance
+          };
+          this.totalRows_ledger = response.data.ledger.length;
+        })
+        .catch(response => {});
+    },
+
+    formatNumber(number, dec) {
+      const value = (number / 1).toFixed(dec);
+      return value.split(".")[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + value.split(".")[1];
     },
 
        //----------------------------------------- Returns Purchase PDF -----------------------\\
@@ -891,19 +1176,27 @@ export default {
       pdf.setFont("VazirmatnBold"); 
 
       let columns = [
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("Customer"), dataKey: "client_name" },
-        { title: self.$t("warehouse"), dataKey: "warehouse_name" },
-        { title: self.$t("Status"), dataKey: "statut" },
-        { title: self.$t("Total"), dataKey: "GrandTotal" },
-        { title: self.$t("Paid"), dataKey: "paid_amount" },
-        { title: self.$t("Due"), dataKey: "due" },
-        { title: self.$t("PaymentStatus"), dataKey: "payment_status" },
-        { title: self.$t("Shipping_status"), dataKey: "shipping_status" }
+        { title: "Sr.No", dataKey: "sr_no" },
+        { title: self.$t("date"), dataKey: "date" },
+        { title: "Bill No.", dataKey: "Ref" },
+        { title: "Customer Name", dataKey: "client_name" },
+        { title: "Items", dataKey: "items" },
+        { title: "Bill Amount", dataKey: "GrandTotal" },
       ];
+      let formatted_sales = self.sales.map((sale, index) => {
+        return {
+          sr_no: index + 1,
+          date: sale.date,
+          Ref: sale.Ref,
+          client_name: sale.client_name,
+          items: sale.items,
+          GrandTotal: self.formatNumber(sale.GrandTotal, 2),
+        };
+      });
+
       pdf.autoTable({
              columns: columns,
-             body: self.sales,
+             body: formatted_sales,
              startY: 70,
              theme: "grid", 
              didDrawPage: (data) => {
@@ -926,6 +1219,59 @@ export default {
       pdf.save("Sale_List.pdf");
     },
 
+    //----------------------------------- Purchases PDF ------------------------------\\
+    Purchases_PDF() {
+      var self = this;
+      let pdf = new jsPDF("p", "pt");
+
+      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+      pdf.setFont("VazirmatnBold"); 
+
+      let columns = [
+        { title: "Sr.No", dataKey: "sr_no" },
+        { title: self.$t("date"), dataKey: "date" },
+        { title: "Bill No.", dataKey: "Ref" },
+        { title: "Supplier Name", dataKey: "provider_name" },
+        { title: "Items", dataKey: "items" },
+        { title: "Bill Amount", dataKey: "GrandTotal" },
+      ];
+      let formatted_purchases = self.purchases.map((purchase, index) => {
+        return {
+          sr_no: index + 1,
+          date: purchase.date,
+          Ref: purchase.Ref,
+          provider_name: purchase.provider_name,
+          items: purchase.items,
+          GrandTotal: self.formatNumber(purchase.GrandTotal, 2),
+        };
+      });
+
+      pdf.autoTable({
+             columns: columns,
+             body: formatted_purchases,
+             startY: 70,
+             theme: "grid", 
+             didDrawPage: (data) => {
+               pdf.setFont("VazirmatnBold");
+               pdf.setFontSize(18);
+               pdf.text("Purchases List", 40, 25);   
+             },
+             styles: {
+               font: "VazirmatnBold", 
+               halign: "center", // 
+             },
+             headStyles: {
+               fillColor: [200, 200, 200], 
+               textColor: [0, 0, 0], 
+               fontStyle: "bold", 
+             },
+
+      });
+
+      pdf.save("Purchases_List.pdf");
+    },
+
       //------------------------------------- Quotations PDF -------------------------\\
     Quotation_PDF() {
       var self = this;
@@ -936,16 +1282,27 @@ export default {
       pdf.setFont("VazirmatnBold"); 
       
       let columns = [
+        { title: "Sr.No", dataKey: "sr_no" },
         { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("Customer"), dataKey: "client_name" },
-        { title: self.$t("warehouse"), dataKey: "warehouse_name" },
-        { title: self.$t("Status"), dataKey: "statut" },
-        { title: self.$t("Total"), dataKey: "GrandTotal" }
+        { title: "Bill No.", dataKey: "Ref" },
+        { title: "Party Name", dataKey: "client_name" },
+        { title: "Items", dataKey: "items" },
+        { title: "Bill Amount", dataKey: "GrandTotal" },
       ];
+      let formatted_quotations = self.quotations.map((quotation, index) => {
+        return {
+          sr_no: index + 1,
+          date: quotation.date,
+          Ref: quotation.Ref,
+          client_name: quotation.client_name,
+          items: quotation.items,
+          GrandTotal: self.formatNumber(quotation.GrandTotal, 2),
+        };
+      });
+
       pdf.autoTable({
              columns: columns,
-             body: self.quotations,
+             body: formatted_quotations,
              startY: 70,
              theme: "grid", 
              didDrawPage: (data) => {
@@ -990,10 +1347,12 @@ export default {
       }
       this.Get_Reports();
       this.Get_Sales(1);
+      this.Get_Purchases(1);
       this.Get_Quotations(1);
       this.Get_Returns_Sale(1);
       this.Get_Returns_Purchase(1);
       this.Get_Expenses(1);
+      this.Get_Ledger(1);
 
       setTimeout(() => {
         this.isLoading = false;
@@ -1056,6 +1415,46 @@ export default {
             this.isLoading = false;
           }, 500);
         });
+    },
+
+    //--------------------------- Purchases Event Page Change  -------------\\
+    PageChangePurchases({ currentPage }) {
+      if (this.purchases_page !== currentPage) {
+        this.Get_Purchases(currentPage);
+      }
+    },
+
+    //--------------------------- Limit Page Purchases -------------\\
+    onPerPageChangePurchases({ currentPerPage }) {
+      if (this.limit_purchases !== currentPerPage) {
+        this.limit_purchases = currentPerPage;
+        this.Get_Purchases(1);
+      }
+    },
+
+    onSearch_Purchases(value) {
+      this.search_purchase = value.searchTerm;
+      this.Get_Purchases(1);
+    },
+
+    //--------------------------- Get purchases By warehouse -------------\\
+    Get_Purchases(page) {
+      axios
+        .get(
+          "report/purchases_warehouse?page=" +
+            page +
+            "&limit=" +
+            this.limit_purchases +
+            "&warehouse_id=" +
+            this.Filter_warehouse +
+            "&search=" +
+            this.search_purchase
+        )
+        .then(response => {
+          this.purchases = response.data.purchases;
+          this.totalRows_purchases = response.data.totalRows;
+        })
+        .catch(response => {});
     },
 
     //--------------------------- Event Page Change -------------\\
@@ -1306,10 +1705,12 @@ export default {
     this.report_with_echart();
     this.Get_Reports();
     this.Get_Sales(1);
+    this.Get_Purchases(1);
     this.Get_Quotations(1);
     this.Get_Returns_Sale(1);
     this.Get_Returns_Purchase(1);
     this.Get_Expenses(1);
+    this.Get_Ledger(1);
   }
 };
 </script>

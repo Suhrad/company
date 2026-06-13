@@ -47,57 +47,18 @@
                   </validation-provider>
                 </b-col>
 
-                 <!-- Payment choice -->
+
+
+                <!-- Supplier -->
                 <b-col lg="4" md="6" sm="12">
-                  <validation-provider name="Payment choice" :rules="{ required: true}">
-                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Paymentchoice')">
-                      <v-select
-                        :class="{'is-invalid': !!errors.length}"
-                        :state="errors[0] ? false : (valid ? true : null)"
-                        v-model="expense.payment_method_id"
-                        :reduce="label => label.value"
-                        :placeholder="$t('PleaseSelect')"
-                        :options="payment_methods.map(payment_methods => ({label: payment_methods.name, value: payment_methods.id}))"
-
-                      ></v-select>
-                      <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
-
-                  <!-- Account -->
-                  <b-col lg="4" md="6" sm="12">
-                  <validation-provider name="Account">
-                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Account')">
-                      <v-select
-                        :class="{'is-invalid': !!errors.length}"
-                        :state="errors[0] ? false : (valid ? true : null)"
-                        v-model="expense.account_id"
-                        :reduce="label => label.value"
-                        :placeholder="$t('Choose_Account')"
-                        :options="accounts.map(accounts => ({label: accounts.account_name, value: accounts.id}))"
-                      />
-                      <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
-                </b-col>
-
-                <!-- Expense_Category  -->
-                <b-col lg="4" md="6" sm="12">
-                  <validation-provider name="category" :rules="{ required: true}">
-                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Expense_Category') + ' ' + '*'">
-                      <v-select
-                        :class="{'is-invalid': !!errors.length}"
-                        :state="errors[0] ? false : (valid ? true : null)"
-                        v-model="expense.category_id"
-                        :reduce="label => label.value"
-                        :placeholder="$t('Choose_Category')"
-                        :options="expense_Category.map(expense_Category => 
-                        ({label: expense_Category.name, value: expense_Category.id}))"
-                      />
-                      <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
-                    </b-form-group>
-                  </validation-provider>
+                  <b-form-group :label="$t('Supplier')">
+                    <v-select
+                      v-model="expense.provider_id"
+                      :reduce="label => label.value"
+                      :placeholder="$t('Choose_Supplier')"
+                      :options="suppliers.map(suppliers => ({label: suppliers.name, value: suppliers.id}))"
+                    />
+                  </b-form-group>
                 </b-col>
 
                 <!-- Amount  -->
@@ -124,8 +85,8 @@
 
                 <!-- Details -->
                 <b-col lg="8" md="8" sm="12">
-                  <validation-provider name="Details" :rules="{ required: true}">
-                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Details') + ' ' + '*'">
+                  <validation-provider name="Details">
+                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Details')">
                       <textarea
                         :class="{'is-invalid': !!errors.length}"
                         :state="errors[0] ? false : (valid ? true : null)"
@@ -171,11 +132,13 @@ export default {
       accounts: [],
       expense_Category: [],
       payment_methods: [],
+      suppliers: [],
       expense: {
         date: "",
         warehouse_id: "",
         account_id: "",
         category_id: "",
+        provider_id: "",
         payment_method_id: "",
         details: "",
         amount: ""
@@ -254,6 +217,7 @@ export default {
           this.warehouses = response.data.warehouses;
           this.accounts = response.data.accounts;
           this.payment_methods = response.data.payment_methods;
+          this.suppliers = response.data.suppliers;
           this.isLoading = false;
         })
         .catch(response => {

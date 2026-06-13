@@ -74,16 +74,6 @@
               <i class="i-Eye text-25 text-info cursor-pointer"></i>
             </a>
 
-            <b-button 
-              v-if="props.row.is_production && props.row.statut == 'sent'"
-              size="sm" 
-              variant="primary" 
-              @click="openCompleteModal(props.row)"
-              class="mx-2 mb-1"
-            >
-              Complete
-            </b-button>
-
             <router-link
               v-if="currentUserPermissions && currentUserPermissions.includes('transfer_edit')"
               title="Edit"
@@ -100,11 +90,6 @@
             >
               <i class="i-Close-Window text-25 text-danger"></i>
             </a>
-          </span>
-          <span v-else-if="props.column.field == 'statut'">
-            <b-badge :variant="props.row.is_production && props.row.statut == 'sent' ? 'warning' : 'success'">
-              {{ props.row.is_production && props.row.statut == 'sent' ? 'In-Production' : props.row.statut }}
-            </b-badge>
           </span>
         </template>
       </vue-good-table>
@@ -200,8 +185,7 @@
         </b-col>
         <b-col lg="7" md="12" sm="12" class="mt-3">
           <div class="table-responsive">
-            <!-- For standard transfers -->
-            <table v-if="!transfer.is_production" class="table table-hover table-bordered table-sm">
+            <table class="table table-hover table-bordered table-sm">
               <thead>
                 <tr>
                   <th scope="col">{{$t('ProductName')}}</th>
@@ -217,48 +201,6 @@
                 </tr>
               </tbody>
             </table>
-
-            <!-- For production transfers -->
-            <div v-else>
-               <h6 class="text-primary"><b>Inputs (Raw Materials)</b></h6>
-               <table class="table table-hover table-bordered table-sm mb-4">
-                  <thead>
-                    <tr>
-                      <th scope="col">{{$t('ProductName')}}</th>
-                      <th scope="col" class="text-right">{{$t('Quantity')}}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="detail in details.filter(d => d.flow_type == 'input')">
-                      <td>{{detail.name}} ({{detail.code}})</td>
-                      <td class="text-right">{{formatNumber(detail.quantity ,2)}} {{detail.unit}}</td>
-                    </tr>
-                  </tbody>
-               </table>
-
-               <h6 class="text-success"><b>Outputs (Finished Goods)</b></h6>
-               <table class="table table-hover table-bordered table-sm">
-                  <thead>
-                    <tr>
-                      <th scope="col">{{$t('ProductName')}}</th>
-                      <th scope="col" class="text-right">{{$t('Quantity')}}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="detail in details.filter(d => d.flow_type == 'output')">
-                      <td>{{detail.name}} ({{detail.code}})</td>
-                      <td class="text-right">{{formatNumber(detail.quantity ,2)}} {{detail.unit}}</td>
-                    </tr>
-                    <tr v-if="details.filter(d => d.flow_type == 'output').length == 0">
-                       <td colspan="2" class="text-center italic">Still In-Process...</td>
-                    </tr>
-                  </tbody>
-               </table>
-
-               <div v-if="transfer.statut == 'completed'" class="alert alert-info mt-2">
-                  <b>Total Wastage: {{ transfer.wastage_total }} kg</b>
-               </div>
-            </div>
           </div>
         </b-col>
       </b-row>
@@ -271,69 +213,6 @@
     </b-modal>
     </b-modal>
 
-    <!-- Complete Production Modal -->
-    <b-modal id="modal_complete_production" size="lg" title="Complete Production" hide-footer>
-      <b-form @submit.prevent="Submit_Complete_Production">
-        <b-row>
-          <b-col md="12" class="mb-3">
-             <h5>Producing in: <b>{{ selected_transfer.to_warehouse }}</b></h5>
-             <p class="text-muted">Enter the finished goods produced from the raw material.</p>
-          </b-col>
-          
-          <b-col md="12" class="mb-4">
-            <div id="autocomplete" class="autocomplete">
-                <input 
-                  placeholder="Scan/Search Finished Product..."
-                  v-model="search_input_modal"
-                  @keyup="searchModal(search_input_modal)"
-                  class="autocomplete-input" />
-                <ul class="autocomplete-result-list" v-show="search_input_modal.length > 1 && product_filter_modal.length > 0">
-                  <li class="autocomplete-result" v-for="product_fil in product_filter_modal" @mousedown="SearchProductModal(product_fil)">
-                    {{ product_fil.code }} ({{ product_fil.name }})
-                  </li>
-                </ul>
-            </div>
-          </b-col>
-
-          <b-col md="12">
-            <table class="table table-hover table-sm">
-              <thead class="bg-gray-300">
-                <tr>
-                  <th>Product</th>
-                  <th class="text-right">Quantity Produced</th>
-                  <th class="text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(item, index) in production_outputs" :key="index">
-                  <td>
-                     <b>{{ item.code }}</b><br>
-                     <small>{{ item.name }}</small>
-                  </td>
-                  <td>
-                    <b-form-input v-model.number="item.quantity" type="number" class="text-right font-weight-bold" style="font-size: 1.2rem; height: 50px;"></b-form-input>
-                  </td>
-                  <td class="text-center">
-                    <b-button variant="outline-danger" size="sm" @click="production_outputs.splice(index, 1)">
-                       <i class="i-Close-Window"></i>
-                    </b-button>
-                  </td>
-                </tr>
-                <tr v-if="production_outputs.length == 0">
-                  <td colspan="3" class="text-center py-4">Search and add the products being produced.</td>
-                </tr>
-              </tbody>
-            </table>
-          </b-col>
-
-          <b-col md="12" class="mt-3">
-            <b-button variant="primary" block size="lg" type="submit" :disabled="production_outputs.length == 0 || SubmitProcessing">
-              <i class="i-Yes me-2"></i> Finish Production & Update Stock
-            </b-button>
-          </b-col>
-        </b-row>
-      </b-form>
-    </b-modal>
   </div>
 </template>
 
@@ -393,20 +272,13 @@ export default {
         { label: this.$t("ToWarehouse"), field: "to_warehouse" },
         { label: this.$t("Products"), field: "products_name" },
         { label: this.$t("Quantity"), field: "products_quantity" },
-        { label: "Wastage", field: "wastage_total" },
       ];
     },
     transfersWithTotal() {
       if (!this.transfers.length) return [];
       let totalQty = 0;
-      let totalWaste = 0;
       this.transfers.forEach(t => {
-        if (t.is_production) {
-          totalQty += parseFloat(t.total_output || 0);
-        } else {
-          totalQty += parseFloat(t.all_qtys_sum || 0);
-        }
-        totalWaste += parseFloat(t.wastage_total || 0);
+        totalQty += parseFloat(t.all_qtys_sum || 0);
       });
       return [...this.transfers, {
         date: '',
@@ -415,7 +287,6 @@ export default {
         to_warehouse: '',
         products_name: '',
         products_quantity: totalQty.toFixed(2),
-        wastage_total: totalWaste.toFixed(2)
       }];
     },
     columns() {
@@ -441,26 +312,6 @@ export default {
         {
           label: this.$t("ToWarehouse"),
           field: "to_warehouse",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
-          label: this.$t("Items"),
-          field: "items",
-          type: "decimal",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
-          label: "Wastage",
-          field: "wastage_total",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-
-        {
-          label: this.$t("Status"),
-          field: "statut",
           tdClass: "text-left",
           thClass: "text-left"
         },
@@ -655,61 +506,6 @@ export default {
        });
     },
 
-    openCompleteModal(transfer) {
-       this.selected_transfer = transfer;
-       this.production_outputs = [];
-       this.search_input_modal = '';
-       this.$bvModal.show("modal_complete_production");
-    },
-
-    searchModal(val) {
-       if (val.length < 2) {
-          this.product_filter_modal = [];
-          return;
-       }
-       this.product_filter_modal = this.all_products.filter(p => 
-          p.name.toLowerCase().includes(val.toLowerCase()) || 
-          p.code.toLowerCase().includes(val.toLowerCase())
-       ).slice(0, 10);
-    },
-
-    SearchProductModal(product) {
-       if (this.production_outputs.some(p => p.id === product.id)) {
-          this.makeToast("warning", "Product already added", "Warning");
-       } else {
-          this.production_outputs.push({
-             id: product.id,
-             product_id: product.id,
-             name: product.name,
-             code: product.code,
-             quantity: 1,
-             product_variant_id: product.product_variant_id
-          });
-       }
-       this.search_input_modal = '';
-       this.product_filter_modal = [];
-    },
-
-    Submit_Complete_Production() {
-       this.SubmitProcessing = true;
-       NProgress.start();
-       axios.post("transfers/complete_production", {
-          transfer_id: this.selected_transfer.id,
-          outputs: this.production_outputs
-       })
-       .then(response => {
-          this.SubmitProcessing = false;
-          NProgress.done();
-          this.$bvModal.hide("modal_complete_production");
-          this.makeToast("success", "Production completed and stock updated", "Success");
-          this.Get_Transfers(this.serverParams.page);
-       })
-       .catch(error => {
-          this.SubmitProcessing = false;
-          NProgress.done();
-          this.makeToast("danger", "Failed to complete production", "Error");
-       });
-    },
 
     //----------------------------------- Get Details Transfer ------------------------------\\
     showDetails(id) {
@@ -744,7 +540,6 @@ export default {
         { title: self.$t("ToWarehouse"), dataKey: "to_warehouse" },
         { title: self.$t("Products"), dataKey: "products_name" },
         { title: self.$t("Quantity"), dataKey: "products_quantity" },
-        { title: "Wastage", dataKey: "wastage_total" },
       ];
 
       let formatted_transfer = [{
@@ -754,15 +549,9 @@ export default {
           to_warehouse: transfer.to_warehouse,
           products_name: transfer.products_name,
           products_quantity: transfer.products_quantity,
-          wastage_total: transfer.wastage_total,
       }];
 
-      let totalQty = 0;
-      if (transfer.is_production) {
-         totalQty = parseFloat(transfer.total_output || 0);
-      } else {
-         totalQty = parseFloat(transfer.all_qtys_sum || 0);
-      }
+      let totalQty = parseFloat(transfer.all_qtys_sum || 0);
 
       let footer = [{
         sr_no: '',
@@ -771,7 +560,6 @@ export default {
         to_warehouse: 'Total .....',
         products_name: '',
         products_quantity: totalQty.toFixed(2),
-        wastage_total: transfer.wastage_total,
       }];
 
       pdf.autoTable({
@@ -833,21 +621,14 @@ export default {
         { title: self.$t("ToWarehouse"), dataKey: "to_warehouse" },
         { title: self.$t("Products"), dataKey: "products_name" },
         { title: self.$t("Quantity"), dataKey: "products_quantity" },
-        { title: "Wastage", dataKey: "wastage_total" },
       ];
 
       // Sort transfers chronologically (oldest first - first created comes first)
       let sortedTransfers = [...self.transfers].sort((a, b) => a.id - b.id);
 
       let totalQty = 0;
-      let totalWaste = 0;
       let formatted_transfers = sortedTransfers.map((transfer, index) => {
-        if (transfer.is_production) {
-           totalQty += parseFloat(transfer.total_output || 0);
-        } else {
-           totalQty += parseFloat(transfer.all_qtys_sum || 0);
-        }
-        totalWaste += parseFloat(transfer.wastage_total || 0);
+        totalQty += parseFloat(transfer.all_qtys_sum || 0);
 
         return {
           sr_no: index + 1,
@@ -856,7 +637,6 @@ export default {
           to_warehouse: transfer.to_warehouse,
           products_name: transfer.products_name,
           products_quantity: transfer.products_quantity,
-          wastage_total: transfer.wastage_total,
         };
       });
 
@@ -867,7 +647,6 @@ export default {
         to_warehouse: 'Total .....',
         products_name: '',
         products_quantity: totalQty.toFixed(2),
-        wastage_total: totalWaste.toFixed(2),
       }];
 
       pdf.autoTable({
@@ -1018,3 +797,27 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+  .main-content >>> .vgt-table, 
+  .main-content >>> .vgt-wrap__footer, 
+  .main-content >>> .vgt-global-search__input,
+  .main-content >>> .vgt-global-search {
+    font-size: 1.3rem !important;
+  }
+  .main-content >>> .vgt-table th, 
+  .main-content >>> .vgt-table td {
+    padding: 12px 10px !important;
+    vertical-align: middle !important;
+  }
+  .main-content >>> .breadcrumb ul li {
+    font-size: 1.2rem !important;
+  }
+  .main-content >>> .breadcrumb h1 {
+    font-size: 1.8rem !important;
+  }
+  .main-content >>> .badge {
+    font-size: 1rem !important;
+    padding: 6px 10px !important;
+  }
+</style>

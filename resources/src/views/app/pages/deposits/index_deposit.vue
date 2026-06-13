@@ -263,8 +263,9 @@ export default {
       let columns = [
         { title: self.$t("date"), dataKey: "date" },
         { title: self.$t("Reference"), dataKey: "deposit_ref" },
+        { title: self.$t("Customer"), dataKey: "client_name" },
         { title: self.$t("Categorie"), dataKey: "category_name" },
-
+        { title: self.$t("Account"), dataKey: "account_name" },
         { title: self.$t("Amount"), dataKey: "amount" },
       ];
 
@@ -273,9 +274,10 @@ export default {
      
      let footer = [{
        date: self.$t("Total"),
-       Ref: '',
+       deposit_ref: '',
+       client_name: '',
        category_name: '',
-
+       account_name: '',
        amount: `${totalGrandTotal.toFixed(2)}`,
       
      }];

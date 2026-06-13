@@ -16,22 +16,16 @@
         placeholder: $t('Search_this_table'),
         enabled: true,
       }"
-        :select-options="{ 
-          enabled: true ,
-          clearSelectionText: '',
-        }"
-        @on-selected-rows-change="selectionChanged"
         :pagination-options="{
         enabled: true,
         mode: 'records',
         nextLabel: 'next',
         prevLabel: 'prev',
       }"
+        @on-row-click="onRowClick"
         :styleClass="showDropdown?'tableOne table-hover vgt-table full-height':'tableOne table-hover vgt-table non-height'"
       >
-        <div slot="selected-row-actions">
-          <button class="btn btn-danger btn-sm" @click="delete_by_selected()">{{$t('Del')}}</button>
-        </div>
+
         <div slot="table-actions" class="mt-2 mb-3">
           <b-button variant="outline-info ripple m-1" size="sm" v-b-toggle.sidebar-right>
             <i class="i-Filter-2"></i>
@@ -63,172 +57,7 @@
         </div>
 
         <template slot="table-row" slot-scope="props">
-          <span v-if="props.column.field == 'actions'">
-            <div>
-              <b-dropdown
-                id="dropdown-right"
-                variant="link"
-                text="right align"
-                toggle-class="text-decoration-none"
-                size="lg"
-                right
-                no-caret
-              >
-                <template v-slot:button-content class="_r_btn border-0">
-                  <span class="_dot _r_block-dot bg-dark"></span>
-                  <span class="_dot _r_block-dot bg-dark"></span>
-                  <span class="_dot _r_block-dot bg-dark"></span>
-                </template>
-                <b-navbar-nav>
-                  <b-dropdown-item title="Show" :to="'/app/sales/detail/'+props.row.id">
-                    <i class="nav-icon i-Eye font-weight-bold mr-2"></i>
-                    {{$t('SaleDetail')}}
-                  </b-dropdown-item>
-                </b-navbar-nav>
 
-                 <b-dropdown-item 
-                  title="Edit"
-                  v-if="currentUserPermissions.includes('Sales_edit') && props.row.sale_has_return == 'no'"
-                  :to="'/app/sales/edit/'+props.row.id"
-                >
-                  <i class="nav-icon i-Pen-2 font-weight-bold mr-2"></i>
-                  {{$t('EditSale')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item
-                  title="Sell Return"
-                  v-if="currentUserPermissions.includes('Sale_Returns_add') && props.row.sale_has_return == 'no' && props.row.statut == 'completed'"
-                  :to="'/app/sales/sale_return/'+props.row.id"
-                >
-                  <i class="nav-icon i-Back font-weight-bold mr-2"></i>
-                  {{$t('Sell_Return')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item
-                  title="Sell Return"
-                  v-if="currentUserPermissions.includes('Sale_Returns_add') && props.row.sale_has_return == 'yes'"
-                  :to="'/app/sale_return/edit/'+props.row.salereturn_id+'/'+props.row.id"
-                >
-                  <i class="nav-icon i-Back font-weight-bold mr-2"></i>
-                  {{$t('Sell_Return')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item
-                  v-if="currentUserPermissions.includes('payment_sales_view')"
-                  @click="Show_Payments(props.row.id , props.row)"
-                >
-                  <i class="nav-icon i-Money-Bag font-weight-bold mr-2"></i>
-                  {{$t('ShowPayment')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item
-                  v-if="currentUserPermissions.includes('payment_sales_add') && props.row.statut =='completed'"
-                  @click="New_Payment(props.row)"
-                >
-                  <i class="nav-icon i-Add font-weight-bold mr-2"></i>
-                  {{$t('AddPayment')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item
-                  v-if="currentUserPermissions.includes('shipment')"
-                  @click="Edit_Shipment(props.row.id)"
-                >
-                  <i class="nav-icon i-Pen-2 font-weight-bold mr-2"></i>
-                  {{$t('Edit_Shipping')}}
-                </b-dropdown-item>
-
-
-                <b-dropdown-item title="Invoice" @click="Invoice_POS(props.row.id)">
-                  <i class="nav-icon i-File-TXT font-weight-bold mr-2"></i>
-                  {{$t('Invoice_POS')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item title="PDF" @click="Invoice_PDF(props.row , props.row.id)">
-                  <i class="nav-icon i-File-TXT font-weight-bold mr-2"></i>
-                  {{$t('DownloadPdf')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item title=" WhatsApp Notification" @click="Send_WhatsApp(props.row.id)">
-                  <i class="nav-icon i-Envelope-2 font-weight-bold mr-2"></i>
-                  WhatsApp Notification
-                </b-dropdown-item>
-
-                <b-dropdown-item title="Email" @click="Send_Email(props.row.id)">
-                  <i class="nav-icon i-Envelope-2 font-weight-bold mr-2"></i>
-                  {{$t('email_notification')}}
-                </b-dropdown-item>
-
-                 <b-dropdown-item title="SMS" @click="Sale_SMS(props.row.id)">
-                  <i class="nav-icon i-Speach-Bubble font-weight-bold mr-2"></i>
-                  {{$t('sms_notification')}}
-                </b-dropdown-item>
-
-                <b-dropdown-item
-                  title="Delete"
-                  v-if="currentUserPermissions.includes('Sales_delete')"
-                  @click="Remove_Sale(props.row.id , props.row.sale_has_return)"
-                >
-                  <i class="nav-icon i-Close-Window font-weight-bold mr-2"></i>
-                  {{$t('DeleteSale')}}
-                </b-dropdown-item>
-              </b-dropdown>
-            </div>
-          </span>
-          <div v-else-if="props.column.field == 'statut'">
-            <span
-              v-if="props.row.statut == 'completed'"
-              class="badge badge-outline-success"
-            >{{$t('complete')}}</span>
-            <span
-              v-else-if="props.row.statut == 'pending'"
-              class="badge badge-outline-info"
-            >{{$t('Pending')}}</span>
-            <span v-else class="badge badge-outline-warning">{{$t('Ordered')}}</span>
-          </div>
-
-          <div v-else-if="props.column.field == 'payment_status'">
-            <span
-              v-if="props.row.payment_status == 'paid'"
-              class="badge badge-outline-success"
-            >{{$t('Paid')}}</span>
-            <span
-              v-else-if="props.row.payment_status == 'partial'"
-              class="badge badge-outline-primary"
-            >{{$t('partial')}}</span>
-            <span v-else class="badge badge-outline-warning">{{$t('Unpaid')}}</span>
-          </div>
-          <div v-else-if="props.column.field == 'shipping_status'">
-            <span
-              v-if="props.row.shipping_status == 'ordered'"
-              class="badge badge-outline-warning"
-            >{{$t('Ordered')}}</span>
-
-            <span
-              v-else-if="props.row.shipping_status == 'packed'"
-              class="badge badge-outline-info"
-            >{{$t('Packed')}}</span>
-
-            <span
-              v-else-if="props.row.shipping_status == 'shipped'"
-              class="badge badge-outline-secondary"
-            >{{$t('Shipped')}}</span>
-
-             <span
-              v-else-if="props.row.shipping_status == 'delivered'"
-              class="badge badge-outline-success"
-            >{{$t('Delivered')}}</span>
-
-            <span v-else-if="props.row.shipping_status == 'cancelled'" class="badge badge-outline-danger">{{$t('Cancelled')}}</span>
-          </div>
-           <div v-else-if="props.column.field == 'Ref'">
-              <router-link
-                :to="'/app/sales/detail/'+props.row.id"
-              >
-                <span class="ul-btn__text ml-1">{{props.row.Ref}}</span>
-              </router-link> <br>
-              <small v-if="props.row.sale_has_return == 'yes'"><i class="text-15 text-danger i-Back"></i></small>
-              
-            </div>
         </template>
       </vue-good-table>
     </div>
@@ -996,26 +825,8 @@ export default {
     columns() {
       return [
         {
-          label: "Company",
-          field: "company_name",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
           label: this.$t("date"),
           field: "date",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
-          label: this.$t("Reference"),
-          field: "Ref",
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
-          label: this.$t("Created_by"),
-          field: "created_by",
           tdClass: "text-left",
           thClass: "text-left"
         },
@@ -1032,11 +843,11 @@ export default {
           thClass: "text-left"
         },
         {
-          label: this.$t("Status"),
-          field: "statut",
-          html: true,
+          label: "Product",
+          field: "product_names",
           tdClass: "text-left",
-          thClass: "text-left"
+          thClass: "text-left",
+          sortable: false
         },
         {
           label: "Qty",
@@ -1050,42 +861,6 @@ export default {
           field: "GrandTotal",
           tdClass: "text-left",
           thClass: "text-left",
-          sortable: false
-        },
-        {
-          label: this.$t("Paid"),
-          field: "paid_amount",
-          tdClass: "text-left",
-          thClass: "text-left",
-          sortable: false
-        },
-        {
-          label: this.$t("Due"),
-          field: "due",
-          tdClass: "text-left",
-          thClass: "text-left",
-          sortable: false
-        },
-        {
-          label: this.$t("PaymentStatus"),
-          field: "payment_status",
-          html: true,
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
-          label: this.$t("Shipping_status"),
-          field: "shipping_status",
-          html: true,
-          tdClass: "text-left",
-          thClass: "text-left"
-        },
-        {
-          label: this.$t("Action"),
-          field: "actions",
-          html: true,
-          tdClass: "text-right",
-          thClass: "text-right",
           sortable: false
         }
       ];
@@ -1355,42 +1130,72 @@ export default {
     
     Sales_PDF() {
       var self = this;
-      let pdf = new jsPDF("l", "pt"); // Landscape
+      let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
 
       const fontPath = "/fonts/Vazirmatn-Bold.ttf";
       pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
       pdf.setFont("VazirmatnBold"); 
 
       let columns = [
-        { title: "Sr.No", dataKey: "sr_no" },
-        { title: self.$t("date"), dataKey: "date" },
-        { title: "Bill No.", dataKey: "Ref" },
+        { title: "Date", dataKey: "date" },
+        { title: "Warehouse", dataKey: "warehouse_name" },
         { title: "Party Name", dataKey: "party_details" },
-        { title: "Qty", dataKey: "total_quantity" },
-        { title: "Bill Amount", dataKey: "GrandTotal" },
+        { title: "Product", dataKey: "product_names" },
+        { title: "Items", dataKey: "item_quantities" },
+        { title: "Amount", dataKey: "GrandTotal" },
       ];
 
-
       let totalAmount = self.sales.reduce((sum, sale) => sum + parseFloat(sale.GrandTotal || 0), 0);
-      let totalQty = self.sales.reduce((sum, sale) => sum + parseFloat(sale.total_quantity || 0), 0);
+      
+      // Calculate Total Items (Quantities)
+      let totalItems = 0;
+      self.sales.forEach(sale => {
+        if (sale.items) {
+           const parts = sale.items.split(', ');
+           parts.forEach(p => {
+             const m = p.match(/\(([^)]+)\)/);
+             if (m) totalItems += parseFloat(m[1]);
+           });
+        }
+      });
 
       let footer = [{
-        sr_no: '',
         date: '',
-        Ref: '',
-        party_details: 'Total .....',
-        total_quantity: totalQty.toFixed(2),
+        warehouse_name: '',
+        party_details: '',
+        product_names: 'Total .....',
+        item_quantities: totalItems.toFixed(2),
         GrandTotal: totalAmount.toFixed(2),
       }];
 
       let formatted_sales = self.sales.map((sale, index) => {
+        // Warehouse Shortcut Mapping
+        let warehouseShortcut = sale.warehouse_name || "";
+        if (warehouseShortcut.toLowerCase().includes("shanti") || warehouseShortcut.includes("STM")) warehouseShortcut = "STM";
+        else if (warehouseShortcut.toLowerCase().includes("nirmal") || warehouseShortcut.includes("NP")) warehouseShortcut = "NP";
+        else if (warehouseShortcut.toLowerCase().includes("shanti textile")) warehouseShortcut = "STM";
+        else if (warehouseShortcut.includes("SL")) warehouseShortcut = "SL";
+        else if (warehouseShortcut.includes("SP")) warehouseShortcut = "SP";
+
+        // Extract product names and quantities separately
+        let productNames = "";
+        let itemQtys = "";
+        
+        if (sale.items) {
+           const parts = sale.items.split(', ');
+           productNames = parts.map(p => p.split(' (')[0]).join(', ');
+           itemQtys = parts.map(p => {
+             const m = p.match(/\(([^)]+)\)/);
+             return m ? m[1] : '';
+           }).join(', ');
+        }
 
         return {
-          sr_no: index + 1,
           date: sale.date,
-          Ref: sale.Ref,
-          party_details: `${sale.client_name}${sale.notes ? '\nNote: ' + sale.notes : ''}`,
-          total_quantity: sale.total_quantity,
+          warehouse_name: warehouseShortcut,
+          party_details: sale.client_name + (sale.notes ? "\n" + sale.notes : ""),
+          product_names: productNames,
+          item_quantities: itemQtys,
           GrandTotal: self.formatNumber(sale.GrandTotal, 2),
         };
       });
@@ -1405,25 +1210,36 @@ export default {
           font: "VazirmatnBold", 
           fontSize: 9,
           halign: "center",
+          cellPadding: 5,
         },
         columnStyles: {
-           party_details: { halign: 'left' },
-
-           GrandTotal: { halign: 'right' },
+           warehouse_name: { cellWidth: 40, halign: 'center' },
+           party_details: { halign: 'left', cellWidth: 'auto' },
+           product_names: { halign: 'left', cellWidth: 120 },
+           item_quantities: { halign: 'center', cellWidth: 40 },
+           GrandTotal: { halign: 'right', cellWidth: 85, fontStyle: 'bold' },
         },
         headStyles: {
-          fillColor: [200, 200, 200], 
+          fillColor: [240, 240, 240], 
           textColor: [0, 0, 0], 
           fontStyle: "bold", 
           lineWidth: 0.5,
           lineColor: [0, 0, 0],
+          fontSize: 10,
         },
         footStyles: {
-          fillColor: [230, 230, 230], 
+          fillColor: [240, 240, 240], 
           textColor: [0, 0, 0], 
           fontStyle: "bold", 
           lineWidth: 0.5,
           lineColor: [0, 0, 0],
+          fontSize: 10,
+        },
+        didParseCell: function (data) {
+            if (data.column.dataKey === 'party_details' && data.cell.section === 'body') {
+                // We can't easily bold part of text in autotable, so we use a visual separator if needed
+                // But we'll keep it simple for now as per autotable limitations
+            }
         },
         didDrawPage: (data) => {
            pdf.setFont("VazirmatnBold");
@@ -1431,6 +1247,25 @@ export default {
            pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
            pdf.setFontSize(14);
            pdf.text("Sales List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
+           
+           // Filter Info
+           pdf.setFontSize(10);
+           let filterText = [];
+           if (self.Filter_warehouse) {
+             const wh = self.warehouses.find(w => w.id == self.Filter_warehouse);
+             if (wh) filterText.push(`Warehouse: ${wh.name}`);
+           }
+           if (self.Filter_Client) {
+             const cl = self.customers.find(c => c.id == self.Filter_Client);
+             if (cl) filterText.push(`Customer: ${cl.name}`);
+           }
+           if (self.Filter_date) {
+             filterText.push(`Date: ${self.Filter_date}`);
+           }
+
+           if (filterText.length > 0) {
+              pdf.text(filterText.join(" | "), pdf.internal.pageSize.width / 2, 65, { align: 'center' });
+           }
         },
       });
 
@@ -1572,6 +1407,12 @@ export default {
         this.Filter_BusinessCompany = "";
       }
     },
+    onRowClick(params) {
+      this.$router.push({
+        path: "/app/sales/edit/" + params.row.id
+      });
+    },
+
     //----------------------------------------- Get all Sales ------------------------------\\
     Get_Sales(page) {
       // Start the progress bar.
@@ -2213,6 +2054,30 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+  .main-content >>> .vgt-table, 
+  .main-content >>> .vgt-wrap__footer, 
+  .main-content >>> .vgt-global-search__input,
+  .main-content >>> .vgt-global-search {
+    font-size: 1.3rem !important;
+  }
+  .main-content >>> .vgt-table th, 
+  .main-content >>> .vgt-table td {
+    padding: 12px 10px !important;
+    vertical-align: middle !important;
+  }
+  .main-content >>> .breadcrumb ul li {
+    font-size: 1.2rem !important;
+  }
+  .main-content >>> .breadcrumb h1 {
+    font-size: 1.8rem !important;
+  }
+  .main-content >>> .badge {
+    font-size: 1rem !important;
+    padding: 6px 10px !important;
+  }
+</style>
 
 <style>
   .total{

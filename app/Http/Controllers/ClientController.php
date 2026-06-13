@@ -282,7 +282,8 @@ class ClientController extends BaseController
 
         DB::transaction(function () use ($request, $id, $isRoyaltyEligible) {
             // 1) Update Client
-            Client::whereKey($id)->update($this->customerPayload($request) + [
+            $client = Client::findOrFail($id);
+            $client->update($this->customerPayload($request) + [
                 'is_royalty_eligible' => $isRoyaltyEligible,
             ]);
 
@@ -316,7 +317,8 @@ class ClientController extends BaseController
             $now = Carbon::now();
 
             // Soft delete Client
-            Client::whereKey($id)->update(['deleted_at' => $now]);
+            $client = Client::findOrFail($id);
+            $client->delete();
 
             // Soft delete linked EcommerceClient (and optionally inactivate)
             EcommerceClient::where('client_id', $id)
@@ -346,7 +348,12 @@ class ClientController extends BaseController
 
         DB::transaction(function () use ($ids, $now) {
             // Soft delete all selected Clients
-            Client::whereIn('id', $ids)->update(['deleted_at' => $now]);
+            foreach ($ids as $id) {
+                $client = Client::find($id);
+                if ($client) {
+                    $client->delete();
+                }
+            }
 
             // Soft delete all linked EcommerceClient rows
             EcommerceClient::whereIn('client_id', $ids)
@@ -532,8 +539,8 @@ class ClientController extends BaseController
         }
 
         DB::transaction(function () use ($insertRows) {
-            foreach (array_chunk($insertRows, 1000) as $chunk) {
-                Client::insert($chunk);
+            foreach ($insertRows as $row) {
+                Client::create($row);
             }
         });
 

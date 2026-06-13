@@ -6,21 +6,21 @@
     <title>Customer Ledger - {{ $client->name }}</title>
     <style>
         @page { size: A4; margin: 20px; }
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; color: #333; line-height: 1.4; }
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 13px; color: #333; line-height: 1.4; }
         .container { width: 100%; }
         
         /* Header section */
         .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #444; padding-bottom: 10px; }
-        .company-name { font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0; }
-        .company-info { font-size: 10px; margin: 2px 0; }
+        .company-name { font-size: 22px; font-weight: bold; text-transform: uppercase; margin: 0; }
+        .company-info { font-size: 12px; margin: 2px 0; }
         
-        .report-title { font-size: 16px; font-weight: bold; margin: 15px 0 5px; text-decoration: underline; }
-        .period { font-size: 11px; font-weight: bold; margin-bottom: 15px; }
+        .report-title { font-size: 20px; font-weight: bold; margin: 15px 0 5px; text-decoration: underline; }
+        .period { font-size: 13px; font-weight: bold; margin-bottom: 15px; }
 
         /* Client info section */
         .client-info-table { width: 100%; margin-bottom: 20px; border: 1px solid #000; }
         .client-info-table td { padding: 5px; vertical-align: top; }
-        .client-name { font-size: 13px; font-weight: bold; text-transform: uppercase; }
+        .client-name { font-size: 16px; font-weight: bold; text-transform: uppercase; }
         
         /* Table styles */
         .ledger-table { width: 100%; border-collapse: collapse; margin-top: 10px; page-break-inside: auto; }
@@ -32,7 +32,7 @@
         .text-center { text-align: center; }
         .font-bold { font-weight: bold; }
         
-        .particulars-cell { font-size: 10px; white-space: pre-line; }
+        .particulars-cell { font-size: 12px; white-space: pre-line; }
         
         /* Footer section */
         .footer-table { width: 100%; margin-top: 0; }

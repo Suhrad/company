@@ -107,6 +107,11 @@ class PaymentPurchasesController extends BaseController
 
         foreach ($Payments as $Payment) {
 
+            $item['id']            = $Payment->id;
+            $item['purchase_id']   = $Payment->purchase_id;
+            $item['account_id']    = $Payment->account_id;
+            $item['payment_method_id'] = $Payment->payment_method_id;
+            $item['notes']         = $Payment->notes;
             $item['date']          = $Payment->date;
             $item['Ref']           = $Payment->Ref;
             $item['Ref_Purchase']  = $Payment['purchase']->Ref;
@@ -117,9 +122,13 @@ class PaymentPurchasesController extends BaseController
             $data[] = $item;
         }
 
-        $suppliers = provider::where('deleted_at', '=', null)->get(['id', 'name']);
+        $suppliers = $helpers->getUnifiedSuppliers();
         $purchases = Purchase::get(['Ref', 'id']);
         $payment_methods = PaymentMethod::where('deleted_at', '=', null)->get(['id', 'name']);
+        $accounts = Account::where('deleted_at', '=', null)->get(['id', 'account_name']);
+        $unpaid_purchases = Purchase::whereNull('deleted_at')
+            ->whereIn('payment_statut', ['unpaid', 'partial'])
+            ->get(['id', 'Ref', 'GrandTotal', 'paid_amount', 'provider_id']);
 
         return response()->json([
             'totalRows' => $totalRows,
@@ -127,8 +136,31 @@ class PaymentPurchasesController extends BaseController
             'purchases' => $purchases,
             'suppliers' => $suppliers,
             'payment_methods' => $payment_methods,
+            'accounts' => $accounts,
+            'unpaid_purchases' => $unpaid_purchases,
         ]);
 
+    }
+
+    //----------- Create Payment Purchase (load dropdowns) --------------\\
+    public function create(Request $request)
+    {
+        $this->authorizeForUser($request->user('api'), 'create', PaymentPurchase::class);
+        $helpers = new helpers();
+        
+        $suppliers = $helpers->getUnifiedSuppliers();
+        $payment_methods = PaymentMethod::where('deleted_at', '=', null)->get(['id', 'name']);
+        $accounts = Account::where('deleted_at', '=', null)->get(['id', 'account_name']);
+        $unpaid_purchases = Purchase::whereNull('deleted_at')
+            ->whereIn('payment_statut', ['unpaid', 'partial'])
+            ->get(['id', 'Ref', 'GrandTotal', 'paid_amount', 'provider_id']);
+
+        return response()->json([
+            'suppliers' => $suppliers,
+            'payment_methods' => $payment_methods,
+            'accounts' => $accounts,
+            'unpaid_purchases' => $unpaid_purchases,
+        ]);
     }
 
     //----------- Store New Payment Purchase --------------\\
@@ -191,6 +223,122 @@ class PaymentPurchasesController extends BaseController
         }
 
         return response()->json(['success' => true, 'message' => 'Payment Create successfully'], 200);
+    }
+
+    // New Bulk Store Method for Payments
+    public function store_bulk(Request $request)
+    {
+        $this->authorizeForUser($request->user('api'), 'create', PaymentPurchase::class);
+        $payments = $request->payments;
+
+        if (!$payments || !is_array($payments) || count($payments) == 0) {
+            return response()->json(['success' => false, 'message' => 'No payments provided'], 400);
+        }
+
+        try {
+            \DB::transaction(function () use ($payments) {
+                foreach ($payments as $p_data) {
+                    $amount = floatval($p_data['montant'] ?? 0);
+                    if ($amount <= 0) continue;
+
+                    $provider_id = $p_data['provider_id'];
+                    $account_id = $p_data['account_id'] ?? null;
+                    $payment_method_id = $p_data['payment_method_id'] ?? 2;
+                    $date = $p_data['date'] ?? Carbon::now()->toDateString();
+                    $notes = $p_data['notes'] ?? '';
+
+                    // Fetch all unpaid/partially paid purchases for this provider, oldest first
+                    $purchases = Purchase::whereNull('deleted_at')
+                        ->where('provider_id', $provider_id)
+                        ->whereIn('payment_statut', ['unpaid', 'partial'])
+                        ->orderBy('date', 'asc')
+                        ->orderBy('id', 'asc')
+                        ->get();
+
+                    $remaining_amount = $amount;
+                    foreach ($purchases as $purchase) {
+                        if ($remaining_amount <= 0) break;
+
+                        $due = $purchase->GrandTotal - $purchase->paid_amount;
+                        if ($due <= 0) continue;
+
+                        $allocation = min($remaining_amount, $due);
+                        $total_paid = $purchase->paid_amount + $allocation;
+                        $remaining_amount -= $allocation;
+
+                        $new_due = $purchase->GrandTotal - $total_paid;
+                        if ($new_due <= 0.0) {
+                            $payment_statut = 'paid';
+                        } else {
+                            $payment_statut = 'partial';
+                        }
+
+                        PaymentPurchase::create([
+                            'purchase_id' => $purchase->id,
+                            'account_id'  => $account_id,
+                            'Ref' => $this->getNumberOrder(),
+                            'date' => $date,
+                            'payment_method_id' => $payment_method_id,
+                            'montant' => $allocation,
+                            'change' => 0,
+                            'notes' => $notes,
+                            'user_id' => Auth::user()->id,
+                        ]);
+
+                        $account = Account::find($account_id);
+                        if ($account) {
+                            $account->update([
+                                'balance' => $account->balance - $allocation,
+                            ]);
+                        }
+
+                        $purchase->update([
+                            'paid_amount' => $total_paid,
+                            'payment_statut' => $payment_statut,
+                        ]);
+                    }
+
+                    // If there is still excess payment amount, apply to the latest purchase
+                    if ($remaining_amount > 0) {
+                        $latest_purchase = Purchase::whereNull('deleted_at')
+                            ->where('provider_id', $provider_id)
+                            ->orderBy('date', 'desc')
+                            ->orderBy('id', 'desc')
+                            ->first();
+
+                        if ($latest_purchase) {
+                            PaymentPurchase::create([
+                                'purchase_id' => $latest_purchase->id,
+                                'account_id'  => $account_id,
+                                'Ref' => $this->getNumberOrder(),
+                                'date' => $date,
+                                'payment_method_id' => $payment_method_id,
+                                'montant' => $remaining_amount,
+                                'change' => 0,
+                                'notes' => $notes . ' (Excess Payment)',
+                                'user_id' => Auth::user()->id,
+                            ]);
+
+                            $account = Account::find($account_id);
+                            if ($account) {
+                                $account->update([
+                                    'balance' => $account->balance - $remaining_amount,
+                                ]);
+                            }
+
+                            $latest_purchase->update([
+                                'paid_amount' => $latest_purchase->paid_amount + $remaining_amount,
+                                'payment_statut' => 'paid',
+                            ]);
+                        }
+                    }
+                }
+            });
+            return response()->json(['success' => true, 'message' => 'Bulk Payments Created Successfully']);
+        } catch (\Exception $e) {
+            \Log::error('PAYMENT_PURCHASE_BULK_ERROR: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     //------------ function show -----------\\
@@ -330,17 +478,18 @@ class PaymentPurchasesController extends BaseController
 
     public function getNumberOrder()
     {
-        $last = DB::table('payment_purchases')->latest('id')->first();
-
-        if ($last) {
-            $item = $last->Ref;
-            $nwMsg = explode("_", $item);
-            $inMsg = $nwMsg[1] + 1;
-            $code = $nwMsg[0] . '_' . $inMsg;
-        } else {
-            $code = 'INV/PR_1111';
+        $existing = DB::table('payment_purchases')->whereNull('deleted_at')->pluck('Ref')->toArray();
+        $used = [];
+        foreach ($existing as $ref) {
+            if (preg_match('/^PAY-(\d+)$/i', $ref, $matches)) {
+                $used[] = intval($matches[1]);
+            }
         }
-        return $code;
+        $n = 1;
+        while (in_array($n, $used)) {
+            $n++;
+        }
+        return 'PAY-' . $n;
     }
 
     //----------- Payment Purchase PDF --------------\\

@@ -157,7 +157,8 @@ class ProvidersController extends BaseController
             'name' => 'required',
         ]);
 
-        Provider::whereId($id)->update([
+        $provider = Provider::findOrFail($id);
+        $provider->update([
             'name' => $request['name'],
             'adresse' => $request['adresse'],
             'phone' => $request['phone'],
@@ -176,9 +177,8 @@ class ProvidersController extends BaseController
     {
         $this->authorizeForUser($request->user('api'), 'delete', Provider::class);
 
-        Provider::whereId($id)->update([
-            'deleted_at' => Carbon::now(),
-        ]);
+        $provider = Provider::findOrFail($id);
+        $provider->delete();
         return response()->json(['success' => true]);
 
     }
@@ -192,9 +192,10 @@ class ProvidersController extends BaseController
 
         $selectedIds = $request->selectedIds;
         foreach ($selectedIds as $Provider_id) {
-            Provider::whereId($Provider_id)->update([
-                'deleted_at' => Carbon::now(),
-            ]);
+            $provider = Provider::find($Provider_id);
+            if ($provider) {
+                $provider->delete();
+            }
         }
         return response()->json(['success' => true]);
     }
@@ -348,8 +349,8 @@ class ProvidersController extends BaseController
         }
 
         DB::transaction(function () use ($insertRows) {
-            foreach (array_chunk($insertRows, 1000) as $chunk) {
-                Provider::insert($chunk);
+            foreach ($insertRows as $row) {
+                Provider::create($row);
             }
         });
 
