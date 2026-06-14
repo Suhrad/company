@@ -7790,171 +7790,26 @@ class ReportController extends BaseController
             if (!$product) continue;
 
             $cat_name = $product->category ? $product->category->name : 'N/A';
-            $hsn = $detail->hsn_sac_code ?: ($product->hsn_sac_code ?: '---');
-            $gst_rate = $detail->gst_rate > 0 ? $detail->gst_rate : $detail->TaxNet;
             $name = $detail->item_name ?: $product->name;
+            $amount = $detail->total_amount > 0 ? $detail->total_amount : $detail->total;
 
-            $amount = $detail->net_amount > 0 ? $detail->net_amount : ($detail->total - $detail->cgst_amount - $detail->sgst_amount - $detail->igst_amount);
-            $total = $detail->total_amount > 0 ? $detail->total_amount : $detail->total;
-            $cgst = (double)$detail->cgst_amount;
-            $sgst = (double)$detail->sgst_amount;
-            $igst = (double)$detail->igst_amount;
-            $tcs = (double)$detail->cess_amount;
-
-            $key = $name . '_' . $hsn . '_' . $gst_rate;
+            $key = $name;
 
             if (!isset($sales_grouped[$cat_name][$key])) {
                 $sales_grouped[$cat_name][$key] = [
                     'name' => $name,
-                    'hsn' => $hsn,
-                    'gst_rate' => $gst_rate,
                     'qty' => 0,
-                    'amount' => 0,
-                    'tcs' => 0,
-                    'cgst' => 0,
-                    'sgst' => 0,
-                    'igst' => 0,
-                    'total' => 0
+                    'amount' => 0
                 ];
             }
 
             $sales_grouped[$cat_name][$key]['qty'] += $detail->quantity;
             $sales_grouped[$cat_name][$key]['amount'] += $amount;
-            $sales_grouped[$cat_name][$key]['tcs'] += $tcs;
-            $sales_grouped[$cat_name][$key]['cgst'] += $cgst;
-            $sales_grouped[$cat_name][$key]['sgst'] += $sgst;
-            $sales_grouped[$cat_name][$key]['igst'] += $igst;
-            $sales_grouped[$cat_name][$key]['total'] += $total;
         }
 
         // Sort categories and items
         ksort($sales_grouped);
         foreach ($sales_grouped as $cat_name => &$items) {
-            uasort($items, function ($a, $b) {
-                return strcmp($a['name'], $b['name']);
-            });
-        }
-
-        // 2. Compile Credit Note Item Summary (Sales Returns)
-        $returns = SaleReturn::whereNull('deleted_at')
-            ->when($warehouse_id, function ($q) use ($warehouse_id) {
-                return $q->where('warehouse_id', $warehouse_id);
-            })
-            ->whereBetween('date', [$from, $to])
-            ->get();
-
-        $return_ids = $returns->pluck('id');
-        $return_details = SaleReturnDetails::whereIn('sale_return_id', $return_ids)
-            ->with(['product.category', 'SaleReturn'])
-            ->get();
-
-        $returns_grouped = [];
-
-        foreach ($return_details as $detail) {
-            $product = $detail->product;
-            if (!$product) continue;
-
-            $return_model = $detail->SaleReturn;
-            $cat_name = $product->category ? $product->category->name : 'N/A';
-            $name = $product->name;
-
-            // Try to find matching SaleDetail
-            $sale_detail = null;
-            if ($return_model && $return_model->sale_id) {
-                $sale_detail = SaleDetail::where('sale_id', $return_model->sale_id)
-                    ->where('product_id', $detail->product_id)
-                    ->where('product_variant_id', $detail->product_variant_id)
-                    ->first();
-            }
-
-            $hsn = '---';
-            $gst_rate = $detail->TaxNet ?: 0;
-            $cgst_rate = 0;
-            $sgst_rate = 0;
-            $igst_rate = 0;
-            $tax_method = $detail->tax_method ?: ($product->tax_method ?: '1');
-
-            if ($sale_detail) {
-                $hsn = $sale_detail->hsn_sac_code ?: ($product->hsn_sac_code ?: '---');
-                $gst_rate = $sale_detail->gst_rate > 0 ? $sale_detail->gst_rate : $sale_detail->TaxNet;
-                $cgst_rate = $sale_detail->cgst_rate;
-                $sgst_rate = $sale_detail->sgst_rate;
-                $igst_rate = $sale_detail->igst_rate;
-                $tax_method = $sale_detail->tax_method;
-            } else {
-                $hsn = $product->hsn_sac_code ?: '---';
-                $gst_rate = $product->TaxNet ?: 0;
-                
-                // Determine local vs inter-state
-                $is_local = true;
-                if ($return_model) {
-                    $client = Client::find($return_model->client_id);
-                    $warehouse = Warehouse::find($return_model->warehouse_id);
-                    if ($client && $warehouse) {
-                        if (strtolower($client->city) !== strtolower($warehouse->city) || strtolower($client->country) !== strtolower($warehouse->country)) {
-                            $is_local = false;
-                        }
-                    }
-                }
-                
-                if ($is_local) {
-                    $cgst_rate = $gst_rate / 2;
-                    $sgst_rate = $gst_rate / 2;
-                    $igst_rate = 0;
-                } else {
-                    $cgst_rate = 0;
-                    $sgst_rate = 0;
-                    $igst_rate = $gst_rate;
-                }
-            }
-
-            // Math calculations
-            $total = $detail->total;
-            if ($tax_method == '2') { // Inclusive
-                $amount = $total / (1 + ($gst_rate / 100));
-                $tax_amount = $total - $amount;
-            } else { // Exclusive
-                $amount = $total;
-                $tax_amount = $total * ($gst_rate / 100);
-                $total = $amount + $tax_amount;
-            }
-
-            $cgst = 0;
-            $sgst = 0;
-            $igst = 0;
-            if ($gst_rate > 0) {
-                $cgst = $tax_amount * ($cgst_rate / $gst_rate);
-                $sgst = $tax_amount * ($sgst_rate / $gst_rate);
-                $igst = $tax_amount * ($igst_rate / $gst_rate);
-            }
-
-            $key = $name . '_' . $hsn . '_' . $gst_rate;
-
-            if (!isset($returns_grouped[$cat_name][$key])) {
-                $returns_grouped[$cat_name][$key] = [
-                    'name' => $name,
-                    'hsn' => $hsn,
-                    'gst_rate' => $gst_rate,
-                    'qty' => 0,
-                    'amount' => 0,
-                    'cgst' => 0,
-                    'sgst' => 0,
-                    'igst' => 0,
-                    'total' => 0
-                ];
-            }
-
-            $returns_grouped[$cat_name][$key]['qty'] += $detail->quantity;
-            $returns_grouped[$cat_name][$key]['amount'] += $amount;
-            $returns_grouped[$cat_name][$key]['cgst'] += $cgst;
-            $returns_grouped[$cat_name][$key]['sgst'] += $sgst;
-            $returns_grouped[$cat_name][$key]['igst'] += $igst;
-            $returns_grouped[$cat_name][$key]['total'] += $total;
-        }
-
-        // Sort categories and items
-        ksort($returns_grouped);
-        foreach ($returns_grouped as $cat_name => &$items) {
             uasort($items, function ($a, $b) {
                 return strcmp($a['name'], $b['name']);
             });
@@ -7974,7 +7829,6 @@ class ReportController extends BaseController
 
         $pdf = \PDF::loadView('pdf.sales_item_summary', [
             'sales_report' => $sales_grouped,
-            'returns_report' => $returns_grouped,
             'from' => $from,
             'to' => $to,
             'setting' => $setting,
