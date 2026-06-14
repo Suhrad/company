@@ -1249,108 +1249,56 @@ export default {
 
       //----------------------------------- Sales PDF ------------------------------\\
     Sales_PDF() {
-      var self = this;
-      let pdf = new jsPDF("p", "pt");
-
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
-
-      let columns = [
-        { title: "Sr.No", dataKey: "sr_no" },
-        { title: self.$t("date"), dataKey: "date" },
-        { title: "Bill No.", dataKey: "Ref" },
-        { title: "Customer Name", dataKey: "client_name" },
-        { title: "Items", dataKey: "items" },
-        { title: "Bill Amount", dataKey: "GrandTotal" },
-      ];
-      let formatted_sales = self.sales.map((sale, index) => {
-        return {
-          sr_no: index + 1,
-          date: sale.date,
-          Ref: sale.Ref,
-          client_name: sale.client_name,
-          items: sale.items,
-          GrandTotal: self.formatNumber(sale.GrandTotal, 2),
-        };
-      });
-
-      pdf.autoTable({
-             columns: columns,
-             body: formatted_sales,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Sales List", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
-
-      });
-
-      pdf.save("Sale_List.pdf");
+      NProgress.start();
+      NProgress.set(0.1);
+      const warehouse = this.Filter_warehouse !== null ? this.Filter_warehouse : "";
+      axios
+        .get(`report/sales_warehouse_pdf?warehouse_id=${warehouse}&search=${this.search_sale}`, {
+          responseType: "blob",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        })
+        .then(response => {
+          const urlObj = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement("a");
+          link.href = urlObj;
+          link.setAttribute("download", "Sale_List.pdf");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => NProgress.done(), 500);
+        })
+        .catch(() => {
+          setTimeout(() => NProgress.done(), 500);
+        });
     },
 
     //----------------------------------- Purchases PDF ------------------------------\\
     Purchases_PDF() {
-      var self = this;
-      let pdf = new jsPDF("p", "pt");
-
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
-
-      let columns = [
-        { title: "Sr.No", dataKey: "sr_no" },
-        { title: self.$t("date"), dataKey: "date" },
-        { title: "Bill No.", dataKey: "Ref" },
-        { title: "Supplier Name", dataKey: "provider_name" },
-        { title: "Items", dataKey: "items" },
-        { title: "Bill Amount", dataKey: "GrandTotal" },
-      ];
-      let formatted_purchases = self.purchases.map((purchase, index) => {
-        return {
-          sr_no: index + 1,
-          date: purchase.date,
-          Ref: purchase.Ref,
-          provider_name: purchase.provider_name,
-          items: purchase.items,
-          GrandTotal: self.formatNumber(purchase.GrandTotal, 2),
-        };
-      });
-
-      pdf.autoTable({
-             columns: columns,
-             body: formatted_purchases,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Purchases List", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
-
-      });
-
-      pdf.save("Purchases_List.pdf");
+      NProgress.start();
+      NProgress.set(0.1);
+      const warehouse = this.Filter_warehouse !== null ? this.Filter_warehouse : "";
+      axios
+        .get(`report/purchases_warehouse_pdf?warehouse_id=${warehouse}&search=${this.search_purchase}`, {
+          responseType: "blob",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        })
+        .then(response => {
+          const urlObj = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement("a");
+          link.href = urlObj;
+          link.setAttribute("download", "Purchase_List.pdf");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => NProgress.done(), 500);
+        })
+        .catch(() => {
+          setTimeout(() => NProgress.done(), 500);
+        });
     },
 
       //------------------------------------- Quotations PDF -------------------------\\

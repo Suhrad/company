@@ -7839,4 +7839,156 @@ class ReportController extends BaseController
         return $pdf->download('Sales_Item_Summary.pdf');
     }
 
+    public function download_sales_warehouse_pdf(Request $request)
+    {
+        $user = Auth::user() ?? $request->user('api');
+        if (!$user) {
+            return redirect('/login');
+        }
+        $this->authorizeForUser($user, 'WarehouseStock', Product::class);
+
+        $warehouse_id = $request->warehouse_id;
+        $search = $request->search;
+
+        $Role = $user->roles()->first();
+        $ShowRecord = Role::findOrFail($Role->id)->inRole('record_view');
+
+        $sales_query = Sale::where('deleted_at', '=', null)->with('client', 'warehouse', 'details.product')
+            ->where(function ($query) use ($ShowRecord, $user) {
+                if (!$ShowRecord) {
+                    return $query->where('user_id', '=', $user->id);
+                }
+            })
+            ->where(function ($query) use ($request) {
+                return $query->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                    return $query->where('warehouse_id', $request->warehouse_id);
+                });
+            })
+            ->where(function ($query) use ($search) {
+                return $query->when($search, function ($query) use ($search) {
+                    return $query->where('Ref', 'LIKE', "%{$search}%")
+                        ->orWhere('statut', 'LIKE', "%{$search}%")
+                        ->orWhere('GrandTotal', $search)
+                        ->orWhere('payment_statut', 'like', $search)
+                        ->orWhere(function ($query) use ($search) {
+                            return $query->whereHas('client', function ($q) use ($search) {
+                                $q->where('name', 'LIKE', "%{$search}%");
+                            });
+                        });
+                });
+            });
+
+        $sales = $sales_query->orderBy('id', 'desc')->get();
+        $data = [];
+
+        foreach ($sales as $sale) {
+            $item['date'] = $sale->date;
+            $item['Ref'] = $sale->Ref;
+            $item['client_name'] = $sale['client']->name;
+            $item['GrandTotal'] = $sale->GrandTotal;
+            $item['items'] = $sale->details->map(function ($detail) {
+                return ($detail->product ? $detail->product->name : ($detail->item_name ?: 'Product')) . ' (' . (float) $detail->quantity . ')';
+            })->implode(', ');
+
+            $data[] = $item;
+        }
+
+        $warehouse_name = 'All Warehouses';
+        if ($warehouse_id) {
+            $wh = Warehouse::where('deleted_at', '=', null)->find($warehouse_id);
+            if ($wh) {
+                $warehouse_name = $wh->name;
+            }
+        }
+
+        $setting = Setting::where('deleted_at', '=', null)->first();
+        $helpers = new helpers();
+        $symbol = $helpers->Get_Currency();
+
+        $pdf = \PDF::loadView('pdf.sales_warehouse', [
+            'sales' => $data,
+            'setting' => $setting,
+            'symbol' => $symbol,
+            'warehouse_name' => $warehouse_name,
+        ]);
+
+        return $pdf->download('Sale_List.pdf');
+    }
+
+    public function download_purchases_warehouse_pdf(Request $request)
+    {
+        $user = Auth::user() ?? $request->user('api');
+        if (!$user) {
+            return redirect('/login');
+        }
+        $this->authorizeForUser($user, 'WarehouseStock', Product::class);
+
+        $warehouse_id = $request->warehouse_id;
+        $search = $request->search;
+
+        $Role = $user->roles()->first();
+        $ShowRecord = Role::findOrFail($Role->id)->inRole('record_view');
+
+        $purchases_query = Purchase::where('deleted_at', '=', null)->with('provider', 'warehouse', 'details.product')
+            ->where(function ($query) use ($ShowRecord, $user) {
+                if (!$ShowRecord) {
+                    return $query->where('user_id', '=', $user->id);
+                }
+            })
+            ->where(function ($query) use ($request) {
+                return $query->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                    return $query->where('warehouse_id', $request->warehouse_id);
+                });
+            })
+            ->where(function ($query) use ($search) {
+                return $query->when($search, function ($query) use ($search) {
+                    return $query->where('Ref', 'LIKE', "%{$search}%")
+                        ->orWhere('statut', 'LIKE', "%{$search}%")
+                        ->orWhere('GrandTotal', $search)
+                        ->orWhere('payment_statut', 'like', $search)
+                        ->orWhere(function ($query) use ($search) {
+                            return $query->whereHas('provider', function ($q) use ($search) {
+                                $q->where('name', 'LIKE', "%{$search}%");
+                            });
+                        });
+                });
+            });
+
+        $purchases = $purchases_query->orderBy('id', 'desc')->get();
+        $data = [];
+
+        foreach ($purchases as $purchase) {
+            $item['date'] = $purchase->date;
+            $item['Ref'] = $purchase->Ref;
+            $item['provider_name'] = $purchase['provider']->name;
+            $item['GrandTotal'] = $purchase->GrandTotal;
+            $item['items'] = $purchase->details->map(function ($detail) {
+                return ($detail->product ? $detail->product->name : ($detail->item_name ?: 'Product')) . ' (' . (float) $detail->quantity . ')';
+            })->implode(', ');
+
+            $data[] = $item;
+        }
+
+        $warehouse_name = 'All Warehouses';
+        if ($warehouse_id) {
+            $wh = Warehouse::where('deleted_at', '=', null)->find($warehouse_id);
+            if ($wh) {
+                $warehouse_name = $wh->name;
+            }
+        }
+
+        $setting = Setting::where('deleted_at', '=', null)->first();
+        $helpers = new helpers();
+        $symbol = $helpers->Get_Currency();
+
+        $pdf = \PDF::loadView('pdf.purchases_warehouse', [
+            'purchases' => $data,
+            'setting' => $setting,
+            'symbol' => $symbol,
+            'warehouse_name' => $warehouse_name,
+        ]);
+
+        return $pdf->download('Purchase_List.pdf');
+    }
+
 }

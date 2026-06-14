@@ -655,6 +655,8 @@ Route::middleware(["auth:api", "Is_Active"])->group(function () {
     Route::get("report/receivables_pdf", "ReportController@download_receivables_pdf");
     Route::get("report/payables_pdf", "ReportController@download_payables_pdf");
     Route::get("report/sales_item_summary_pdf", "ReportController@download_sales_item_summary_pdf");
+    Route::get("report/sales_warehouse_pdf", "ReportController@download_sales_warehouse_pdf");
+    Route::get("report/purchases_warehouse_pdf", "ReportController@download_purchases_warehouse_pdf");
 
 
     //------------------------------- Module Settings ------------------------\\
