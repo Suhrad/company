@@ -3,9 +3,9 @@
     <breadcumb :page="$t('Warehouse_report')" :folder="$t('Reports')"/>
     <div v-if="isLoading" class="loading_page spinner spinner-primary mr-3"></div>
 
-    <b-row class="justify-content-center mb-5" v-if="!isLoading">
+    <b-row class="align-items-end mb-5" v-if="!isLoading">
       <!-- warehouse -->
-      <b-col lg="3" md="6" sm="12">
+      <b-col lg="4" md="4" sm="12" class="mb-3 mb-md-0">
         <b-form-group :label="$t('warehouse')">
           <v-select
             @input="Selected_Warehouse"
@@ -15,6 +15,35 @@
             :options="warehouses.map(warehouses => ({label: warehouses.name, value: warehouses.id}))"
           />
         </b-form-group>
+      </b-col>
+      <!-- date range -->
+      <b-col lg="4" md="4" sm="12" class="mb-3 mb-md-0">
+        <b-form-group :label="$t('DateRange')">
+          <date-range-picker
+            v-model="dateRange"
+            :locale-data="locale"
+            :autoApply="true"
+            :showDropdowns="true"
+            :opens="'left'"
+            class="w-100"
+          >
+            <template v-slot:input="picker">
+              <b-button variant="light" class="w-100 text-left border bg-white d-flex align-items-center justify-content-between">
+                <span>
+                  <i class="i-Calendar-4 mr-1"></i>
+                  {{ fmt(picker.startDate) }} — {{ fmt(picker.endDate) }}
+                </span>
+                <i class="i-Arrow-Down"></i>
+              </b-button>
+            </template>
+          </date-range-picker>
+        </b-form-group>
+      </b-col>
+      <!-- export button -->
+      <b-col lg="4" md="4" sm="12" class="mb-3 text-right text-md-left">
+        <b-button @click="Download_Sales_Item_Summary()" variant="outline-success ripple" class="d-flex align-items-center justify-content-center">
+          <i class="i-File-Copy mr-2"></i> Export Item Summary (PDF)
+        </b-button>
       </b-col>
     </b-row>
 
@@ -512,6 +541,10 @@ import { mapActions, mapGetters } from "vuex";
 import ECharts from "vue-echarts/components/ECharts.vue";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import DateRangePicker from "vue2-daterange-picker";
+import "vue2-daterange-picker/dist/vue2-daterange-picker.css";
+import moment from "moment";
+import NProgress from "nprogress";
 
 // import ECharts modules manually to reduce bundle size
 import "echarts/lib/chart/pie";
@@ -522,14 +555,28 @@ import "echarts/lib/component/legend";
 
 export default {
   components: {
-    "v-chart": ECharts
+    "v-chart": ECharts,
+    DateRangePicker
   },
   metaInfo: {
     // if no subcomponents specify a metaInfo.title, this title will be used
     title: "Warehouse Report"
   },
   data() {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 30);
     return {
+      dateRange: { startDate: start, endDate: end },
+      locale: {
+        applyLabel: this.$t("Apply") || "Apply",
+        cancelLabel: this.$t("Cancel") || "Cancel",
+        weekLabel: "W",
+        customRangeLabel: this.$t("CustomRange") || "Custom Range",
+        daysOfWeek: moment.weekdaysMin(),
+        monthNames: moment.monthsShort(),
+        firstDay: 1
+      },
       Stock_Count: {},
       Stock_value: {},
       totalRows_quotations: "",
@@ -1004,6 +1051,40 @@ export default {
   },
 
   methods: {
+
+    fmt(d) {
+      return moment(d).format("YYYY-MM-DD");
+    },
+
+    Download_Sales_Item_Summary() {
+      NProgress.start();
+      NProgress.set(0.1);
+      
+      const warehouse = this.Filter_warehouse !== null ? this.Filter_warehouse : "";
+      const from = this.fmt(this.dateRange.startDate);
+      const to = this.fmt(this.dateRange.endDate);
+
+      axios
+        .get(`report/sales_item_summary_pdf?warehouse_id=${warehouse}&from=${from}&to=${to}`, {
+          responseType: "blob",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        })
+        .then(response => {
+          const urlObj = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement("a");
+          link.href = urlObj;
+          link.setAttribute("download", `Sales_Item_Summary_${from}_to_${to}.pdf`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => NProgress.done(), 500);
+        })
+        .catch(() => {
+          setTimeout(() => NProgress.done(), 500);
+        });
+    },
 
     //---------------------- Expenses PDF -------------------------------\\
     Expense_PDF() {
