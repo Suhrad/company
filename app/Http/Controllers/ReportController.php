@@ -7960,6 +7960,14 @@ class ReportController extends BaseController
             });
         }
 
+        $warehouse_name = 'All Warehouses';
+        if ($warehouse_id) {
+            $wh = Warehouse::where('deleted_at', '=', null)->find($warehouse_id);
+            if ($wh) {
+                $warehouse_name = $wh->name;
+            }
+        }
+
         $setting = Setting::where('deleted_at', '=', null)->first();
         $helpers = new helpers();
         $symbol = $helpers->Get_Currency();
@@ -7971,6 +7979,7 @@ class ReportController extends BaseController
             'to' => $to,
             'setting' => $setting,
             'symbol' => $symbol,
+            'warehouse_name' => $warehouse_name,
         ]);
 
         return $pdf->download('Sales_Item_Summary.pdf');

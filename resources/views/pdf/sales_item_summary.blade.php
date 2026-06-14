@@ -10,22 +10,24 @@
         .container { width: 100%; }
         
         /* Header section */
-        .header { text-align: center; margin-bottom: 15px; }
-        .company-name { font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 0; }
-        .report-title { font-size: 13px; font-weight: bold; margin: 5px 0; }
-        .period-info { font-size: 10px; margin-bottom: 10px; width: 100%; overflow: hidden; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #444; padding-bottom: 10px; }
+        .company-name { font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0; }
+        .company-info { font-size: 10px; margin: 2px 0; }
+        
+        .report-title { font-size: 16px; font-weight: bold; margin: 15px 0 5px; text-decoration: underline; }
+        .period-info { font-size: 11px; font-weight: bold; margin-bottom: 15px; width: 100%; overflow: hidden; }
         .period-left { float: left; }
         .period-right { float: right; }
         
         /* Table styles */
         .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; page-break-inside: auto; }
         .summary-table tr { page-break-inside: avoid; page-break-after: auto; }
-        .summary-table th { border: 1px solid #000; padding: 5px 4px; font-weight: bold; text-align: left; background-color: #f2f2f2; font-size: 9px; }
-        .summary-table td { border: 1px solid #000; padding: 4px; vertical-align: middle; font-size: 9px; }
+        .summary-table th { background-color: #f2f2f2; border: 1px solid #000; padding: 4px 2px; font-weight: bold; text-align: center; font-size: 10px; }
+        .summary-table td { border: 1px solid #000; padding: 4px 2px; vertical-align: middle; font-size: 9px; }
         
         .group-header { font-weight: bold; background-color: #f9f9f9; }
         .subtotal-row { font-weight: bold; }
-        .subtotal-row td { border-top: 1px solid #000; border-bottom: 2px double #000; }
+        .subtotal-row td { border-top: 1px solid #000; border-bottom: 2px double #000; background-color: #fafafa; }
         .grandtotal-row { font-weight: bold; }
         .grandtotal-row td { border-top: 1.5px solid #000; border-bottom: 2px double #000; background-color: #f2f2f2; }
         
@@ -41,7 +43,11 @@
     <div class="container">
         <!-- ================= SALES ITEM SUMMARY ================= -->
         <div class="header">
-            <h1 class="company-name">{{ $setting['CompanyName'] ?? 'Shanti Textile Manufacturing Co' }}</h1>
+            <h1 class="company-name">{{ $warehouse_name }}</h1>
+            <p class="company-info">
+                {{ $setting['CompanyAdress'] ?? '' }}
+                @if(isset($setting['CompanyPhone'])) <br>Phone: {{ $setting['CompanyPhone'] }} @endif
+            </p>
             <div class="report-title">Sales Item Summary</div>
         </div>
         
@@ -164,7 +170,11 @@
 
         <!-- ================= CREDIT NOTE ITEM SUMMARY ================= -->
         <div class="header">
-            <h1 class="company-name">{{ $setting['CompanyName'] ?? 'Shanti Textile Manufacturing Co' }}</h1>
+            <h1 class="company-name">{{ $warehouse_name }}</h1>
+            <p class="company-info">
+                {{ $setting['CompanyAdress'] ?? '' }}
+                @if(isset($setting['CompanyPhone'])) <br>Phone: {{ $setting['CompanyPhone'] }} @endif
+            </p>
             <div class="report-title">Credit Note Item Summary</div>
         </div>
         
