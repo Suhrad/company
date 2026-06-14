@@ -650,8 +650,10 @@ Route::middleware(["auth:api", "Is_Active"])->group(function () {
 
     Route::get("get_backup", "BackupController@Get_Backup");
     Route::get("generate_new_backup", "BackupController@Generate_Backup");
-    Route::delete("delete_backup/{name}", "BackupController@Delete_Backup");
     Route::get("download_backup/{name}", "BackupController@Download_Backup");
+
+    Route::get("report/receivables_pdf", "ReportController@download_receivables_pdf");
+    Route::get("report/payables_pdf", "ReportController@download_payables_pdf");
 
 
     //------------------------------- Module Settings ------------------------\\

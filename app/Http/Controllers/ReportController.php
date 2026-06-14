@@ -7529,5 +7529,233 @@ class ReportController extends BaseController
         return response()->json(['report' => $data]);
     }
 
+    public function download_receivables_pdf(Request $request)
+    {
+        $user = Auth::user() ?? $request->user('api');
+        if (!$user) {
+            return redirect('/login');
+        }
+        $this->authorizeForUser($user, 'Reports_customers', Client::class);
+
+        $search = $request->search;
+        $clients = Client::whereNull('deleted_at')
+            ->when($search, function ($query) use ($search) {
+                $query->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('code', 'LIKE', "%{$search}%")
+                      ->orWhere('phone', 'LIKE', "%{$search}%");
+            })
+            ->orderBy('name', 'asc')
+            ->get();
+
+        $reports = [];
+        $total_amount = 0;
+
+        foreach ($clients as $client) {
+            $provider = Provider::whereNull('deleted_at')->where('name', $client->name)->first();
+            $provider_id = $provider ? $provider->id : null;
+
+            // Customer Due
+            $sales_amount = DB::table('sales')
+                ->whereNull('deleted_at')
+                ->where('statut', 'completed')
+                ->where('client_id', $client->id)
+                ->sum('GrandTotal');
+
+            $sales_paid = DB::table('sales')
+                ->whereNull('deleted_at')
+                ->where('statut', 'completed')
+                ->where('client_id', $client->id)
+                ->sum('paid_amount');
+
+            $total_deposits = DB::table('deposits')
+                ->whereNull('deleted_at')
+                ->where('client_id', $client->id)
+                ->sum('amount');
+
+            $sales_paid += $total_deposits;
+
+            $total_amount_return = DB::table('sale_returns')
+                ->whereNull('deleted_at')
+                ->where('client_id', $client->id)
+                ->sum('GrandTotal');
+
+            $total_paid_return = DB::table('sale_returns')
+                ->whereNull('deleted_at')
+                ->where('client_id', $client->id)
+                ->sum('paid_amount');
+
+            $sale_return_due = $total_amount_return - $total_paid_return;
+            $customer_due = ($sales_amount - $sales_paid) - $sale_return_due;
+
+            // Supplier Due
+            $supplier_due = 0;
+            if ($provider_id) {
+                $purchases_amount = DB::table('purchases')
+                    ->whereNull('deleted_at')
+                    ->where('statut', 'received')
+                    ->where('provider_id', $provider_id)
+                    ->sum('GrandTotal');
+
+                $purchases_paid = DB::table('purchases')
+                    ->whereNull('deleted_at')
+                    ->where('statut', 'received')
+                    ->where('provider_id', $provider_id)
+                    ->sum('paid_amount');
+
+                $total_amount_return_p = DB::table('purchase_returns')
+                    ->whereNull('deleted_at')
+                    ->where('provider_id', $provider_id)
+                    ->sum('GrandTotal');
+
+                $total_paid_return_p = DB::table('purchase_returns')
+                    ->whereNull('deleted_at')
+                    ->where('provider_id', $provider_id)
+                    ->sum('paid_amount');
+
+                $supplier_return_due = $total_amount_return_p - $total_paid_return_p;
+                $supplier_due = ($purchases_amount - $purchases_paid) - $supplier_return_due;
+            }
+
+            $net_due = $customer_due - $supplier_due;
+
+            if ($net_due > 0) {
+                $reports[] = [
+                    'name' => $client->name,
+                    'amount' => $net_due
+                ];
+                $total_amount += $net_due;
+            }
+        }
+
+        $setting = Setting::where('deleted_at', '=', null)->first();
+        $helpers = new helpers();
+        $symbol = $helpers->Get_Currency();
+
+        $pdf = \PDF::loadView('pdf.outstanding_report', [
+            'reports' => $reports,
+            'title' => 'Receivables Outstanding Summary (Money Left)',
+            'amount_column' => 'Amount Left',
+            'setting' => $setting,
+            'total_amount' => $total_amount,
+            'symbol' => $symbol,
+        ]);
+
+        return $pdf->download('Receivables_Outstanding.pdf');
+    }
+
+    public function download_payables_pdf(Request $request)
+    {
+        $user = Auth::user() ?? $request->user('api');
+        if (!$user) {
+            return redirect('/login');
+        }
+        $this->authorizeForUser($user, 'Reports_customers', Client::class);
+
+        $search = $request->search;
+        $clients = Client::whereNull('deleted_at')
+            ->when($search, function ($query) use ($search) {
+                $query->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('code', 'LIKE', "%{$search}%")
+                      ->orWhere('phone', 'LIKE', "%{$search}%");
+            })
+            ->orderBy('name', 'asc')
+            ->get();
+
+        $reports = [];
+        $total_amount = 0;
+
+        foreach ($clients as $client) {
+            $provider = Provider::whereNull('deleted_at')->where('name', $client->name)->first();
+            $provider_id = $provider ? $provider->id : null;
+
+            // Customer Due
+            $sales_amount = DB::table('sales')
+                ->whereNull('deleted_at')
+                ->where('statut', 'completed')
+                ->where('client_id', $client->id)
+                ->sum('GrandTotal');
+
+            $sales_paid = DB::table('sales')
+                ->whereNull('deleted_at')
+                ->where('statut', 'completed')
+                ->where('client_id', $client->id)
+                ->sum('paid_amount');
+
+            $total_deposits = DB::table('deposits')
+                ->whereNull('deleted_at')
+                ->where('client_id', $client->id)
+                ->sum('amount');
+
+            $sales_paid += $total_deposits;
+
+            $total_amount_return = DB::table('sale_returns')
+                ->whereNull('deleted_at')
+                ->where('client_id', $client->id)
+                ->sum('GrandTotal');
+
+            $total_paid_return = DB::table('sale_returns')
+                ->whereNull('deleted_at')
+                ->where('client_id', $client->id)
+                ->sum('paid_amount');
+
+            $sale_return_due = $total_amount_return - $total_paid_return;
+            $customer_due = ($sales_amount - $sales_paid) - $sale_return_due;
+
+            // Supplier Due
+            $supplier_due = 0;
+            if ($provider_id) {
+                $purchases_amount = DB::table('purchases')
+                    ->whereNull('deleted_at')
+                    ->where('statut', 'received')
+                    ->where('provider_id', $provider_id)
+                    ->sum('GrandTotal');
+
+                $purchases_paid = DB::table('purchases')
+                    ->whereNull('deleted_at')
+                    ->where('statut', 'received')
+                    ->where('provider_id', $provider_id)
+                    ->sum('paid_amount');
+
+                $total_amount_return_p = DB::table('purchase_returns')
+                    ->whereNull('deleted_at')
+                    ->where('provider_id', $provider_id)
+                    ->sum('GrandTotal');
+
+                $total_paid_return_p = DB::table('purchase_returns')
+                    ->whereNull('deleted_at')
+                    ->where('provider_id', $provider_id)
+                    ->sum('paid_amount');
+
+                $supplier_return_due = $total_amount_return_p - $total_paid_return_p;
+                $supplier_due = ($purchases_amount - $purchases_paid) - $supplier_return_due;
+            }
+
+            $net_due = $customer_due - $supplier_due;
+
+            if ($net_due < 0) {
+                $payable_amount = -$net_due;
+                $reports[] = [
+                    'name' => $client->name,
+                    'amount' => $payable_amount
+                ];
+                $total_amount += $payable_amount;
+            }
+        }
+
+        $setting = Setting::where('deleted_at', '=', null)->first();
+        $helpers = new helpers();
+        $symbol = $helpers->Get_Currency();
+
+        $pdf = \PDF::loadView('pdf.outstanding_report', [
+            'reports' => $reports,
+            'title' => 'Payables Outstanding Summary (Money to Give)',
+            'amount_column' => 'Amount Payable',
+            'setting' => $setting,
+            'total_amount' => $total_amount,
+            'symbol' => $symbol,
+        ]);
+
+        return $pdf->download('Payables_Outstanding.pdf');
+    }
 
 }

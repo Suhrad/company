@@ -31,6 +31,15 @@
       }"
         styleClass="tableOne table-hover vgt-table mt-3"
       >
+        <div slot="table-actions" class="mt-2 mb-3">
+          <b-button @click="Download_Receivables()" size="sm" variant="outline-success ripple m-1">
+            <i class="i-File-Copy"></i> Export Receivables (PDF)
+          </b-button>
+          <b-button @click="Download_Payables()" size="sm" variant="outline-danger ripple m-1">
+            <i class="i-File-Copy"></i> Export Payables (PDF)
+          </b-button>
+        </div>
+
         <template slot="table-row" slot-scope="props">
           <span v-if="props.column.field == 'type'">
             <b-badge :variant="props.row.type === 'company' ? 'primary' : (props.row.type === 'customer' ? 'success' : 'info')">
@@ -252,6 +261,56 @@ export default {
           const link = document.createElement("a");
           link.href = urlObj;
           link.setAttribute("download", "Ledger-" + row.name + ".pdf");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => NProgress.done(), 500);
+        })
+        .catch(() => {
+          setTimeout(() => NProgress.done(), 500);
+        });
+    },
+
+    Download_Receivables() {
+      NProgress.start();
+      NProgress.set(0.1);
+      axios
+        .get("report/receivables_pdf?search=" + this.search, {
+          responseType: "blob",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        })
+        .then(response => {
+          const urlObj = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement("a");
+          link.href = urlObj;
+          link.setAttribute("download", "Receivables_Outstanding.pdf");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => NProgress.done(), 500);
+        })
+        .catch(() => {
+          setTimeout(() => NProgress.done(), 500);
+        });
+    },
+
+    Download_Payables() {
+      NProgress.start();
+      NProgress.set(0.1);
+      axios
+        .get("report/payables_pdf?search=" + this.search, {
+          responseType: "blob",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        })
+        .then(response => {
+          const urlObj = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement("a");
+          link.href = urlObj;
+          link.setAttribute("download", "Payables_Outstanding.pdf");
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
