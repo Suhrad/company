@@ -132,6 +132,7 @@
                               @input="Verified_Qty(detail,detail.detail_id)"
                               :reduce="label => label.value"
                               :placeholder="$t('type')"
+                              append-to-body
                               :options="
                                 [
                                   {label: $t('Addition'), value: 'add'},
