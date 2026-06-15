@@ -1656,34 +1656,6 @@ const baseRoutes = [
                     },
 
                     {
-                        name: "users_report",
-                        path: "users_report",
-                        component: () =>
-                            import(
-                                /* webpackChunkName: "users_report" */
-                                "./views/app/pages/reports/users_report"
-                            )
-                    },
-                    {
-                        name: "detail_user_report",
-                        path: "detail_user/:id",
-                        component: () =>
-                            import(
-                                /* webpackChunkName: "detail_user_report" */
-                                "./views/app/pages/reports/detail_user_report"
-                            )
-                    },
-
-                    {
-                        name: "report_error_logs",
-                        path: "report_error_logs",
-                        component: () =>
-                            import(
-                                /* webpackChunkName: "report_error_logs" */
-                                "./views/app/pages/reports/report_error_logs"
-                            )
-                    },
-                    {
                         name: "Job_Work_Report",
                         path: "job_work",
                         component: () =>

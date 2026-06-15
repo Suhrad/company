@@ -135,7 +135,6 @@
                       || currentUserPermissions.includes('Top_products')
                       || currentUserPermissions.includes('inactive_customers_report')
                       || currentUserPermissions.includes('Top_customers')
-                      || currentUserPermissions.includes('users_report')
                       || currentUserPermissions.includes('product_report')
                        || currentUserPermissions.includes('zeroSalesProducts')
                        || currentUserPermissions.includes('Dead_Stock_Report')
@@ -149,7 +148,6 @@
                         || currentUserPermissions.includes('seller_report')
                        || currentUserPermissions.includes('report_sales_by_category')
                         || currentUserPermissions.includes('report_sales_by_brand')
-                       || currentUserPermissions.includes('report_error_logs')
                       || currentUserPermissions.includes('stock_report'))"
             @mouseenter="toggleSubMenu"
             :class="{ active: selectedParentMenu == 'reports' }"
@@ -1377,26 +1375,6 @@
             <router-link tag="a" class to="/app/reports/top_customers">
               <i class="nav-icon i-Trophy"></i>
               <span class="item-name">{{$t('Top_customers')}}</span>
-            </router-link>
-          </li>
-
-          <li
-            class="nav-item"
-            v-if="currentUserPermissions && currentUserPermissions.includes('users_report')"
-          >
-            <router-link tag="a" class to="/app/reports/users_report">
-              <i class="nav-icon i-User"></i>
-              <span class="item-name">{{$t('Users_Report')}}</span>
-            </router-link>
-          </li>
-
-           <li
-            class="nav-item"
-            v-if="currentUserPermissions && currentUserPermissions.includes('report_error_logs')"
-          >
-            <router-link tag="a" class to="/app/reports/report_error_logs">
-              <i class="nav-icon i-Bug"></i>
-              <span class="item-name">{{$t('Error_Logs')}}</span>
             </router-link>
           </li>
 
