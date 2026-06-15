@@ -140,10 +140,7 @@
                        || currentUserPermissions.includes('Dead_Stock_Report')
                         || currentUserPermissions.includes('Stock_Aging_Report')
                         || currentUserPermissions.includes('Stock_Transfer_Report')
-                        || currentUserPermissions.includes('discount_summary_report')
                        || currentUserPermissions.includes('Stock_Adjustment_Report')
-                       || currentUserPermissions.includes('tax_summary_report')
-                       || currentUserPermissions.includes('draft_invoices_report')
                        || currentUserPermissions.includes('report_transactions')
                         || currentUserPermissions.includes('seller_report')
                        || currentUserPermissions.includes('report_sales_by_category')
@@ -1244,29 +1241,6 @@
         </router-link>
       </li>
 
-
-        <li class="nav-item" v-if="currentUserPermissions && currentUserPermissions.includes('discount_summary_report')">
-          <router-link tag="a" class :to="{ name: 'discount_summary_report' }">
-            <i class="nav-icon i-Billing"></i>
-            <span class="item-name">{{$t('Discount_Summary_Report')}}</span>
-          </router-link>
-        </li>
-
-        <li class="nav-item" v-if="currentUserPermissions && currentUserPermissions.includes('tax_summary_report')">
-          <router-link tag="a" class :to="{ name: 'tax_summary_report' }">
-            <i class="nav-icon i-Files"></i>
-            <span class="item-name">{{$t('Tax_Summary_Report')}}</span>
-          </router-link>
-        </li>
-
-
-
-        <li class="nav-item" v-if="currentUserPermissions && currentUserPermissions.includes('draft_invoices_report')">
-          <router-link tag="a" class :to="{ name: 'draft_invoices_report' }">
-            <i class="nav-icon i-Receipt"></i>
-            <span class="item-name">{{$t('Draft_Invoices_Report')}}</span>
-          </router-link>
-        </li>
 
 
           

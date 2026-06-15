@@ -1395,36 +1395,7 @@ const baseRoutes = [
 
                     
 
-                      {
-                        name: "draft_invoices_report",
-                        path: "draft_invoices_report",
-                        component: () =>
-                            import(
-                                /* webpackChunkName: "Draft_Invoices_Report" */
-                                "./views/app/pages/reports/Draft_Invoices_Report"
-                            )
-                    },
 
-
-                    {
-                        name: "discount_summary_report",
-                        path: "discount_summary_report",
-                        component: () =>
-                            import(
-                                /* webpackChunkName: "Discount_Summary_Report" */
-                                "./views/app/pages/reports/Discount_Summary_Report"
-                            )
-                    },
-
-                     {
-                        name: "tax_summary_report",
-                        path: "tax_summary_report",
-                        component: () =>
-                            import(
-                                /* webpackChunkName: "Tax_Summary_Report" */
-                                "./views/app/pages/reports/Tax_Summary_Report"
-                            )
-                    },
 
                     {
                         name: "report_transactions",
