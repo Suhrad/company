@@ -92,15 +92,26 @@
                       <th scope="col">Product</th>
                       <th scope="col" class="text-center">Yield Qty</th>
                       <th scope="col" class="text-center">Wastage</th>
+                      <th scope="col" class="text-right" style="width: 120px;">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     <template v-for="receipt in order.receipts">
-                      <tr v-for="item in receipt.details" :key="item.id">
+                      <tr v-for="(item, dIndex) in receipt.details" :key="item.id">
                         <td class="font-weight-bold">{{ receipt.Ref }} <br> <small class="text-muted">{{ receipt.date }}</small></td>
                         <td>{{ item.product.name }}</td>
                         <td class="text-center font-weight-bold text-success">{{ item.quantity }}</td>
                         <td class="text-center text-danger">{{ item.wastage }}</td>
+                        <td class="text-right">
+                          <span v-if="dIndex === 0">
+                            <b-button @click="editReceipt(receipt.id)" variant="outline-success" size="sm" class="btn-icon ripple mr-2">
+                              <i class="i-Edit"></i>
+                            </b-button>
+                            <b-button @click="deleteReceipt(receipt.id)" variant="outline-danger" size="sm" class="btn-icon ripple">
+                              <i class="i-Close-Window"></i>
+                            </b-button>
+                          </span>
+                        </td>
                       </tr>
                     </template>
                   </tbody>
@@ -140,7 +151,7 @@ export default {
       });
     },
     editOrder() {
-      this.$router.push({ name: 'edit_job_work_issue', params: { id: this.order.id } });
+      this.$router.push({ name: 'edit_job_work', params: { id: this.order.id } });
     },
     recordReceipt() {
       this.$router.push({ path: '/app/job_work/receipt', query: { order_id: this.order.id } });

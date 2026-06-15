@@ -91,8 +91,11 @@
                 </b-col>
 
                 <!-- Phase 2: Receipts Information -->
-                <b-col lg="12" md="12" sm="12" class="mt-5 mb-4 border-bottom pb-2">
-                  <h4 class="font-weight-bold text-success">2. Finished Goods Receipts (In)</h4>
+                <b-col lg="12" md="12" sm="12" class="mt-5 mb-4 border-bottom pb-2 d-flex justify-content-between align-items-center">
+                  <h4 class="font-weight-bold text-success mb-0">2. Finished Goods Receipts (In)</h4>
+                  <b-button @click="addReceipt" variant="outline-success" size="sm" class="ripple">
+                    <i class="i-Add mr-1"></i> Add Receipt Record
+                  </b-button>
                 </b-col>
 
                 <b-col md="12" v-for="(receipt, rIndex) in form.receipts" :key="'r-'+rIndex" class="mb-5 p-3 border rounded shadow-sm bg-white">
