@@ -241,10 +241,13 @@ class JobWorkController extends BaseController
          ]);
  
          return DB::transaction(function () use ($request, $order) {
-             // 1. Revert Old Stock
+             // 1. Revert Old Stock (including raw materials consumed)
              foreach ($order->details as $item) {
                  $this->updateStock($order->from_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity, 'add');
                  $this->updateStock($order->worker_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity, 'sub');
+                 if ($item->quantity_consumed > 0) {
+                     $this->updateStock($order->worker_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity_consumed, 'add');
+                 }
              }
  
              // 2. Update Order
@@ -255,7 +258,7 @@ class JobWorkController extends BaseController
                  'notes' => $request->notes,
              ]);
  
-             // 3. Update Details & Apply New Stock
+             // 3. Update Details & Apply New Stock (including raw materials consumed)
              $order->details()->delete();
              foreach ($request->details as $item) {
                  $order->details()->create([
@@ -267,6 +270,9 @@ class JobWorkController extends BaseController
  
                  $this->updateStock($request->from_warehouse_id, $item['product_id'], $item['product_variant_id'] ?? null, $item['quantity'], 'sub');
                  $this->updateStock($request->worker_warehouse_id, $item['product_id'], $item['product_variant_id'] ?? null, $item['quantity'], 'add');
+                 if (($item['quantity_consumed'] ?? 0) > 0) {
+                     $this->updateStock($request->worker_warehouse_id, $item['product_id'], $item['product_variant_id'] ?? null, $item['quantity_consumed'] ?? 0, 'sub');
+                 }
              }
  
              return response()->json(['success' => true]);
@@ -288,10 +294,13 @@ class JobWorkController extends BaseController
          return DB::transaction(function () use ($request, $order) {
              // 1. Revert EVERYTHING (Order details stock & Receipts stock)
              
-             // Revert Issue Stock
+             // Revert Issue Stock & Consumed Stock
              foreach ($order->details as $item) {
                  $this->updateStock($order->from_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity, 'add');
                  $this->updateStock($order->worker_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity, 'sub');
+                 if ($item->quantity_consumed > 0) {
+                     $this->updateStock($order->worker_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity_consumed, 'add');
+                 }
              }
  
              // Revert Receipts Stock
@@ -299,10 +308,6 @@ class JobWorkController extends BaseController
                  foreach ($receipt->details as $item) {
                      $this->updateStock($receipt->to_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity, 'sub');
                  }
-                 // We don't revert RM consumption here because it's already reverted by the Issue Stock revert above (Worker Warehouse)
-                 // Actually, Issue revert adds to FromWH and subs from WorkerWH.
-                 // Receipt revert should subtract from ToWH.
-                 // The consumption subtraction from WorkerWH is handled by the Issue logic naturally in a factory setup.
              }
  
              // 2. Update Order Info
@@ -313,7 +318,7 @@ class JobWorkController extends BaseController
                  'notes' => $request->notes,
              ]);
  
-             // 3. Update Issue Details & Stock
+             // 3. Update Issue Details & Stock & Consumed Stock
              $order->details()->delete();
              foreach ($request->details as $item) {
                  $order->details()->create([
@@ -324,11 +329,12 @@ class JobWorkController extends BaseController
                  ]);
                  $this->updateStock($request->from_warehouse_id, $item['product_id'], $item['product_variant_id'] ?? null, $item['quantity'], 'sub');
                  $this->updateStock($request->worker_warehouse_id, $item['product_id'], $item['product_variant_id'] ?? null, $item['quantity'], 'add');
+                 if (($item['quantity_consumed'] ?? 0) > 0) {
+                     $this->updateStock($request->worker_warehouse_id, $item['product_id'], $item['product_variant_id'] ?? null, $item['quantity_consumed'] ?? 0, 'sub');
+                 }
              }
  
              // 4. Update Receipts
-             // For simplicity, we'll replace receipts if they are sent in the unified update
-             // Or we could match IDs. Let's do simple replace for now as per user "one go" request.
              $order->receipts()->delete();
              if ($request->has('receipts')) {
                  foreach ($request->receipts as $rData) {
@@ -380,15 +386,6 @@ class JobWorkController extends BaseController
                  $this->updateStock($receipt->to_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity, 'sub');
              }
  
-             // 2. Revert Old RM Consumptions (Wait, consumptions are not stored per receipt in a detail table yet, they are added to OrderDetail->quantity_consumed)
-             // I should have a ReceiptConsumption table if I wanted full reconciliation, but I'll try to handle it if I can.
-             // For now, let's assume the user only updates FG and I might need to fix RM later if they want.
-             // But if I want it "workable", I should probably just allow editing FG for now or implement full RM tracking.
-             
-             // Actually, the user's request is "but not the job work in inn the whole job work edit process".
-             // This implies they want the "In" part to be editable too.
- 
-             // Update Receipt Info
              $receipt->update([
                  'date' => $request->date,
                  'to_warehouse_id' => $request->to_warehouse_id,
@@ -428,14 +425,58 @@ class JobWorkController extends BaseController
  
      public function destroy($id)
      {
-         JobWorkOrder::findOrFail($id)->delete();
-         return response()->json(['success' => true]);
+         return DB::transaction(function () use ($id) {
+             $order = JobWorkOrder::with(['details', 'receipts.details'])->findOrFail($id);
+             
+             // Revert Issue Stock & Consumed Stock
+             foreach ($order->details as $item) {
+                 $this->updateStock($order->from_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity, 'add');
+                 $this->updateStock($order->worker_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity, 'sub');
+                 if ($item->quantity_consumed > 0) {
+                     $this->updateStock($order->worker_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity_consumed, 'add');
+                 }
+             }
+ 
+             // Revert Received Stock
+             foreach ($order->receipts as $receipt) {
+                 foreach ($receipt->details as $item) {
+                     $this->updateStock($receipt->to_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity, 'sub');
+                 }
+                 $receipt->delete();
+             }
+ 
+             $order->delete();
+             return response()->json(['success' => true]);
+         });
      }
  
      public function delete_by_selection(Request $request)
      {
-         JobWorkOrder::whereIn('id', $request->selectedIds)->delete();
-         return response()->json(['success' => true]);
+         return DB::transaction(function () use ($request) {
+             foreach ($request->selectedIds as $id) {
+                 $order = JobWorkOrder::with(['details', 'receipts.details'])->findOrFail($id);
+                 
+                 // Revert Issue Stock & Consumed Stock
+                 foreach ($order->details as $item) {
+                     $this->updateStock($order->from_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity, 'add');
+                     $this->updateStock($order->worker_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity, 'sub');
+                     if ($item->quantity_consumed > 0) {
+                         $this->updateStock($order->worker_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity_consumed, 'add');
+                     }
+                 }
+ 
+                 // Revert Received Stock
+                 foreach ($order->receipts as $receipt) {
+                     foreach ($receipt->details as $item) {
+                         $this->updateStock($receipt->to_warehouse_id, $item->product_id, $item->product_variant_id, $item->quantity, 'sub');
+                     }
+                     $receipt->delete();
+                 }
+ 
+                 $order->delete();
+             }
+             return response()->json(['success' => true]);
+         });
      }
  
      public function jobWorkPdf(Request $request, $id)
