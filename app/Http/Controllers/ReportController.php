@@ -615,6 +615,7 @@ class ReportController extends BaseController
             $item['discount'] = $Sale['discount'];
             $item['shipping'] = $Sale['shipping'];
             $item['warehouse_name'] = $Sale['warehouse']['name'];
+            $item['warehouse_shortcut'] = $Sale['warehouse']['shortcut'] ?: $Sale['warehouse']['name'];
             $item['seller'] = $Sale['user']['username'];
             $item['client_name'] = $Sale['client']['name'];
             $item['client_email'] = $Sale['client']['email'];
@@ -725,6 +726,7 @@ class ReportController extends BaseController
             $item['id'] = $purchase->id;
             $item['Ref'] = $purchase->Ref;
             $item['warehouse_name'] = $purchase['warehouse']->name;
+            $item['warehouse_shortcut'] = $purchase['warehouse']->shortcut ?: $purchase['warehouse']->name;
             $item['provider_name'] = $purchase['provider']->name;
             $item['statut'] = $purchase->statut;
             $item['GrandTotal'] = $purchase->GrandTotal;
@@ -7886,9 +7888,10 @@ class ReportController extends BaseController
             $item['Ref'] = $sale->Ref;
             $item['client_name'] = $sale['client']->name;
             $item['GrandTotal'] = $sale->GrandTotal;
-            $item['items'] = $sale->details->map(function ($detail) {
-                return ($detail->product ? $detail->product->name : ($detail->item_name ?: 'Product')) . ' (' . (float) $detail->quantity . ')';
-            })->implode(', ');
+            $item['items'] = $sale->details->map(function ($detail, $index) {
+                $num = $index + 1;
+                return $num . '. ' . ($detail->product ? $detail->product->name : ($detail->item_name ?: 'Product')) . ' (' . (float) $detail->quantity . ')';
+            })->implode("\n");
 
             $data[] = $item;
         }
@@ -7962,9 +7965,10 @@ class ReportController extends BaseController
             $item['Ref'] = $purchase->Ref;
             $item['provider_name'] = $purchase['provider']->name;
             $item['GrandTotal'] = $purchase->GrandTotal;
-            $item['items'] = $purchase->details->map(function ($detail) {
-                return ($detail->product ? $detail->product->name : ($detail->item_name ?: 'Product')) . ' (' . (float) $detail->quantity . ')';
-            })->implode(', ');
+            $item['items'] = $purchase->details->map(function ($detail, $index) {
+                $num = $index + 1;
+                return $num . '. ' . ($detail->product ? $detail->product->name : ($detail->item_name ?: 'Product')) . ' (' . (float) $detail->quantity . ')';
+            })->implode("\n");
 
             $data[] = $item;
         }

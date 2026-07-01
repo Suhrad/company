@@ -72,12 +72,12 @@
                   </thead>
                   <tbody>
                     <tr v-for="(row, index) in spreadsheetRows" :key="index">
-                      <td class="p-0">
+                      <td class="p-0 align-middle">
                         <v-select
                           v-model="row.client_id"
                           :options="clients.map(c => ({label: c.name, value: c.id}))"
                           :reduce="opt => opt.value"
-                          class="grid-v-select"
+                          class="grid-v-select fill-height-select"
                           placeholder="Select Customer"
                           append-to-body
                           :ref="'row_client_' + index"
@@ -85,49 +85,59 @@
                         />
                       </td>
                       <td class="p-0">
-                        <v-select
-                          v-model="row.product_data"
-                          :options="products.map(p => ({label: p.name + ' (' + p.code + ')', value: p}))"
-                          :reduce="opt => opt.value"
-                          class="grid-v-select"
-                          placeholder="Select Product"
-                          append-to-body
-                          :ref="'row_product_' + index"
-                          @input="onGridProductChange(index)"
-                        />
+                        <div v-for="(item, itemIndex) in row.items" :key="itemIndex" class="grid-row-item d-flex align-items-center">
+                          <v-select
+                            v-model="item.product_data"
+                            :options="products.map(p => ({label: p.name + ' (' + p.code + ')', value: p}))"
+                            :reduce="opt => opt.value"
+                            class="grid-v-select flex-grow-1"
+                            placeholder="Select Product"
+                            append-to-body
+                            :ref="'row_product_' + index + '_' + itemIndex"
+                            @input="onGridProductChange(index, itemIndex)"
+                          />
+                          <i v-if="row.items.length > 1" @click="removeItem(index, itemIndex)" class="i-Close text-danger ml-1 mr-2 cursor-pointer" style="font-size: 1.2rem;" title="Remove this item"></i>
+                        </div>
                       </td>
                       <td class="p-0">
-                        <input 
-                          type="text" 
-                          inputmode="decimal"
-                          v-model.number="row.quantity" 
-                          class="grid-input text-center" 
-                          :ref="'row_qty_' + index"
-                          @keydown.enter.prevent="focusNextCell(index, 'amount')"
-                        />
+                        <div v-for="(item, itemIndex) in row.items" :key="itemIndex" class="grid-row-item">
+                          <input 
+                            type="text" 
+                            inputmode="decimal"
+                            v-model.number="item.quantity" 
+                            class="grid-input text-center" 
+                            :ref="'row_qty_' + index + '_' + itemIndex"
+                            @keydown.enter.prevent="focusNextCell(index, itemIndex, 'amount')"
+                          />
+                        </div>
                       </td>
                       <td class="p-0">
-                        <input 
-                          type="text" 
-                          inputmode="decimal"
-                          v-model.number="row.amount" 
-                          class="grid-input text-right" 
-                          :ref="'row_amount_' + index"
-                          @keydown.enter.prevent="focusNextCell(index, 'note')"
-                        />
+                        <div v-for="(item, itemIndex) in row.items" :key="itemIndex" class="grid-row-item">
+                          <input 
+                            type="text" 
+                            inputmode="decimal"
+                            v-model.number="item.amount" 
+                            class="grid-input text-right" 
+                            :ref="'row_amount_' + index + '_' + itemIndex"
+                            @keydown.enter.prevent="focusNextCell(index, itemIndex, 'note')"
+                          />
+                        </div>
                       </td>
-                      <td class="p-0">
+                      <td class="p-0 align-middle">
                         <input 
                           type="text" 
                           v-model="row.note" 
-                          class="grid-input" 
+                          class="grid-input fill-height-input" 
                           placeholder="Note..." 
                           :ref="'row_note_' + index"
                           @keydown.enter.prevent="moveToNextRow(index)"
                         />
                       </td>
                       <td class="p-0 text-center align-middle">
-                        <i @click="clearRow(index)" class="i-Close-Window text-danger cursor-pointer"></i>
+                        <div class="d-flex justify-content-center align-items-center fill-height-input" style="min-height: 60px;">
+                          <i @click="addItem(index)" class="i-Add text-success cursor-pointer mr-3" style="font-size: 1.5rem; font-weight: bold;" title="Add product to this bill"></i>
+                          <i @click="clearRow(index)" class="i-Close-Window text-danger cursor-pointer" style="font-size: 1.5rem;" title="Delete this bill"></i>
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -394,12 +404,17 @@ export default {
       is_bulk_processing: false,
       spreadsheetRows: [{ 
         client_id: null, 
-        product_data: null, 
-        quantity: null, 
-        amount: null, 
         note: '',
-        product_id: null,
-        variant_id: null
+        items: [{
+          product_data: null,
+          product_id: null,
+          variant_id: null,
+          quantity: null,
+          amount: null,
+          sale_unit_id: null,
+          tax_method: null,
+          tax_percent: null
+        }]
       }],
       units:[],
       product: {
@@ -562,17 +577,8 @@ export default {
       let note = transporter + "LR: " + lr_val + "\n";
 
       const warehouse = this.warehouses.find(w => w.id === this.sale.warehouse_id);
-      if (warehouse) {
-        let shortform = "";
-        const name = warehouse.name.toUpperCase();
-        if (name.includes("SHANTI")) shortform = "STM";
-        else if (name.includes("NIMAR")) shortform = "NP";
-        else if (name.includes("SARAL")) shortform = "SR";
-        else if (name.includes("SARVESHWAR")) shortform = "SP";
-
-        if (shortform) {
-          note += shortform + ":";
-        }
+      if (warehouse && warehouse.shortcut) {
+        note += warehouse.shortcut + ":";
       }
       this.sale.notes = note;
     },
@@ -1438,8 +1444,9 @@ export default {
 
     onGridCustomerChange(index) {
       this.$nextTick(() => {
-        if (this.$refs['row_product_' + index]) {
-          this.$refs['row_product_' + index][0].$el.querySelector('input').focus();
+        const refName = 'row_product_' + index + '_0';
+        if (this.$refs[refName] && this.$refs[refName][0]) {
+          this.$refs[refName][0].$el.querySelector('input').focus();
         }
       });
     },
@@ -1447,12 +1454,17 @@ export default {
     addNewRow() {
       this.spreadsheetRows.push({
         client_id: null,
-        product_data: null,
-        quantity: null,
-        amount: null,
         note: this.generateAutoNote(),
-        product_id: null,
-        variant_id: null
+        items: [{
+          product_data: null,
+          product_id: null,
+          variant_id: null,
+          quantity: null,
+          amount: null,
+          sale_unit_id: null,
+          tax_method: null,
+          tax_percent: null
+        }]
       });
       this.$nextTick(() => {
         const nextIndex = this.spreadsheetRows.length - 1;
@@ -1460,6 +1472,32 @@ export default {
            this.$refs['row_client_' + nextIndex][0].$el.querySelector('input').focus();
         }
       });
+    },
+
+    addItem(rowIndex) {
+      this.spreadsheetRows[rowIndex].items.push({
+        product_data: null,
+        product_id: null,
+        variant_id: null,
+        quantity: null,
+        amount: null,
+        sale_unit_id: null,
+        tax_method: null,
+        tax_percent: null
+      });
+      this.$nextTick(() => {
+        const nextItemIndex = this.spreadsheetRows[rowIndex].items.length - 1;
+        const refName = 'row_product_' + rowIndex + '_' + nextItemIndex;
+        if (this.$refs[refName] && this.$refs[refName][0]) {
+          this.$refs[refName][0].$el.querySelector('input').focus();
+        }
+      });
+    },
+
+    removeItem(rowIndex, itemIndex) {
+      if (this.spreadsheetRows[rowIndex].items.length > 1) {
+        this.spreadsheetRows[rowIndex].items.splice(itemIndex, 1);
+      }
     },
 
     generateAutoNote() {
@@ -1471,23 +1509,20 @@ export default {
       
       // Warehouse specific prefix
       const warehouse = this.warehouses.find(w => w.id === this.sale.warehouse_id);
-      if (warehouse) {
-        if (warehouse.name.includes('Shanti')) note += "STM: ";
-        else if (warehouse.name.includes('Transit')) note += "Transit: ";
-        else if (warehouse.name.includes('Nirmal')) note += "NP: ";
-        else if (warehouse.name.includes('Saral')) note += "SL: ";
-        else if (warehouse.name.includes('Sarveshwar')) note += "SP: ";
+      if (warehouse && warehouse.shortcut) {
+        note += warehouse.shortcut + ": ";
       }
       
       return note.trim();
     },
 
-    onGridProductChange(index) {
-      const row = this.spreadsheetRows[index];
-      if (row.product_data) {
-        row.product_id = row.product_data.id;
-        row.variant_id = row.product_data.product_variant_id || null;
-        row.amount = row.product_data.Net_price;
+    onGridProductChange(rowIndex, itemIndex) {
+      const row = this.spreadsheetRows[rowIndex];
+      const item = row.items[itemIndex];
+      if (item.product_data) {
+        item.product_id = item.product_data.id;
+        item.variant_id = item.product_data.product_variant_id || null;
+        item.amount = item.product_data.Net_price;
         
         // Auto-fill note if it's currently empty or just the default
         if (!row.note || row.note === "") {
@@ -1495,28 +1530,36 @@ export default {
         }
         
         // Fetch full product details required by the backend
-        axios.get("/show_product_data/" + row.product_id + "/" + row.variant_id).then(response => {
-          row.sale_unit_id = response.data.sale_unit_id;
-          row.tax_method = response.data.tax_method;
-          row.tax_percent = response.data.tax_percent;
+        axios.get("/show_product_data/" + item.product_id + "/" + item.variant_id).then(response => {
+          item.sale_unit_id = response.data.sale_unit_id;
+          item.tax_method = response.data.tax_method;
+          item.tax_percent = response.data.tax_percent;
         });
 
         this.$nextTick(() => {
-          if (this.$refs['row_qty_' + index]) {
-            this.$refs['row_qty_' + index][0].focus();
+          const refName = 'row_qty_' + rowIndex + '_' + itemIndex;
+          if (this.$refs[refName] && this.$refs[refName][0]) {
+            this.$refs[refName][0].focus();
           }
         });
       }
     },
 
-    focusNextCell(index, type) {
+    focusNextCell(index, itemIndex, type) {
       this.$nextTick(() => {
-        const refName = 'row_' + type + '_' + index;
-        if (this.$refs[refName]) {
-          if (this.$refs[refName][0].$el) {
-             this.$refs[refName][0].$el.querySelector('input').focus();
-          } else {
-             this.$refs[refName][0].focus();
+        if (type === 'note') {
+          const refName = 'row_note_' + index;
+          if (this.$refs[refName]) {
+             if (this.$refs[refName][0]) {
+                this.$refs[refName][0].focus();
+             } else {
+                this.$refs[refName].focus();
+             }
+          }
+        } else {
+          const refName = 'row_' + type + '_' + index + '_' + itemIndex;
+          if (this.$refs[refName] && this.$refs[refName][0]) {
+            this.$refs[refName][0].focus();
           }
         }
       });
@@ -1526,38 +1569,39 @@ export default {
       if (index === this.spreadsheetRows.length - 1) {
         this.addNewRow();
       } else {
-        // Just move to the existing next row
         this.$nextTick(() => {
           const nextIndex = index + 1;
-          if (this.$refs['row_product_' + nextIndex]) {
-             this.$refs['row_product_' + nextIndex][0].$el.querySelector('input').focus();
+          const refName = 'row_product_' + nextIndex + '_0';
+          if (this.$refs[refName] && this.$refs[refName][0]) {
+             this.$refs[refName][0].$el.querySelector('input').focus();
           }
         });
       }
     },
 
     clearRow(index) {
-      // If it's the only row, just reset it. Otherwise, remove it.
       if (this.spreadsheetRows.length > 1) {
         this.spreadsheetRows.splice(index, 1);
       } else {
         this.$set(this.spreadsheetRows, 0, {
           client_id: null,
-          product_data: null,
-          quantity: 0,
-          amount: 0,
           note: this.generateAutoNote(),
-          product_id: null,
-          variant_id: null,
-          sale_unit_id: null,
-          tax_method: null,
-          tax_percent: null
+          items: [{
+            product_data: null,
+            product_id: null,
+            variant_id: null,
+            quantity: null,
+            amount: null,
+            sale_unit_id: null,
+            tax_method: null,
+            tax_percent: null
+          }]
         });
       }
     },
 
     submitSpreadsheet() {
-      const validRows = this.spreadsheetRows.filter(r => r.client_id && r.product_id);
+      const validRows = this.spreadsheetRows.filter(r => r.client_id && r.items.some(item => item.product_id));
       if (validRows.length === 0) {
         this.makeToast("warning", "Please fill at least one row", "Warning");
         return;
@@ -1569,6 +1613,26 @@ export default {
 
       // Transform rows to match the backend expected format
       const salesData = validRows.map(row => {
+        const validItems = row.items.filter(item => item.product_id);
+        const grandTotal = validItems.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+        
+        const details = validItems.map(item => {
+          return {
+            product_id: item.product_id,
+            product_variant_id: item.variant_id,
+            quantity: parseFloat(item.quantity || 0),
+            Unit_price: item.quantity > 0 ? parseFloat((parseFloat(item.amount || 0) / parseFloat(item.quantity)).toFixed(2)) : 0,
+            subtotal: parseFloat(parseFloat(item.amount || 0).toFixed(2)),
+            discount: 0,
+            taxe: 0,
+            tax_percent: item.tax_percent || 0,
+            tax_method: item.tax_method || 1,
+            discount_Method: "1",
+            sale_unit_id: item.sale_unit_id,
+            imei_number: ""
+          };
+        });
+
         return {
           date: this.sale.date,
           client_id: row.client_id,
@@ -1579,25 +1643,12 @@ export default {
           TaxNet: 0,
           discount: 0,
           shipping: 0,
-          GrandTotal: parseFloat(parseFloat(row.amount).toFixed(2)),
+          GrandTotal: parseFloat(grandTotal.toFixed(2)),
           paid_amount: 0,
           payment_statut: 'unpaid',
           transporter_name: this.sale.transporter_name,
           lr_number: this.sale.lr_number,
-          details: [{
-            product_id: row.product_id,
-            product_variant_id: row.variant_id,
-            quantity: parseFloat(row.quantity),
-            Unit_price: row.quantity > 0 ? parseFloat((parseFloat(row.amount) / row.quantity).toFixed(2)) : 0,
-            subtotal: parseFloat(parseFloat(row.amount).toFixed(2)),
-            discount: 0,
-            taxe: 0,
-            tax_percent: row.tax_percent || 0,
-            tax_method: row.tax_method || 1,
-            discount_Method: "1",
-            sale_unit_id: row.sale_unit_id,
-            imei_number: ""
-          }],
+          details: details,
           payment: {
              status: "pending",
              payment_method_id: 2,
@@ -1758,6 +1809,25 @@ export default {
   }
   .worksheet-grid-wrapper {
     overflow: visible;
+  }
+  .grid-row-item {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    height: 60px;
+  }
+  .grid-row-item:last-child {
+    border-bottom: none;
+  }
+  .fill-height-input {
+    height: 100%;
+    min-height: 60px;
+  }
+  .fill-height-select >>> .vs__dropdown-toggle {
+    height: 100%;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
   }
 </style>
 

@@ -68,7 +68,7 @@
                         <td class="text-center">{{ Carbon\Carbon::parse($row['date'])->format('d-m-Y') }}</td>
                         <td class="text-center">{{ $row['Ref'] }}</td>
                         <td>{{ $row['client_name'] }}</td>
-                        <td>{{ $row['items'] }}</td>
+                        <td>{!! nl2br(e($row['items'])) !!}</td>
                         <td class="text-right font-bold">{{ number_format($row['GrandTotal'], 2) }}</td>
                     </tr>
                 @endforeach

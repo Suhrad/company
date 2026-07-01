@@ -1019,17 +1019,8 @@ export default {
       let note = transporter + "LR: " + lr_val + "\n";
 
       const warehouse = this.warehouses.find(w => w.id === this.sale.warehouse_id);
-      if (warehouse) {
-        let shortform = "";
-        const name = warehouse.name.toUpperCase();
-        if (name.includes("SHANTI")) shortform = "STM";
-        else if (name.includes("NIMAR")) shortform = "NP";
-        else if (name.includes("SARAL")) shortform = "SL";
-        else if (name.includes("SARVESHWAR")) shortform = "SP";
-
-        if (shortform) {
-          note += shortform + ":";
-        }
+      if (warehouse && warehouse.shortcut) {
+        note += warehouse.shortcut + ":";
       }
       this.sale.notes = note;
     },

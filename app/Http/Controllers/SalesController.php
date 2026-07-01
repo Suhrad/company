@@ -149,6 +149,7 @@ class SalesController extends BaseController
             $item['discount'] = $Sale['discount'];
             $item['shipping'] = $Sale['shipping'];
             $item['warehouse_name'] = $Sale['warehouse']['name'];
+            $item['warehouse_shortcut'] = $Sale['warehouse']['shortcut'] ?: $Sale['warehouse']['name'];
             $item['client_id'] = $Sale['client']['id'];
             $item['client_name'] = $Sale['client']['name'];
             $item['client_email'] = $Sale['client']['email'];
@@ -1342,7 +1343,7 @@ class SalesController extends BaseController
 
         $details = array();
         $helpers = new helpers();
-        $sale_data = Sale::with('details.product.unitSale')
+        $sale_data = Sale::with('details.product.unitSale', 'warehouse')
             ->where('deleted_at', '=', null)
             ->findOrFail($id);
 
@@ -1357,6 +1358,7 @@ class SalesController extends BaseController
         $sale['statut'] = $sale_data->statut;
         $sale['Ref'] = $sale_data->Ref;
         $sale['date'] = $sale_data->date . ' ' . $sale_data->time;
+        $sale['warehouse'] = $sale_data['warehouse']->shortcut ?: $sale_data['warehouse']->name;
         $sale['GrandTotal'] = number_format($sale_data->GrandTotal, 2, '.', '');
         $sale['paid_amount'] = number_format($sale_data->paid_amount, 2, '.', '');
         $sale['due'] = number_format($sale['GrandTotal'] - $sale['paid_amount'], 2, '.', '');

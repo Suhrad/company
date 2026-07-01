@@ -81,6 +81,17 @@
               </validation-provider>
             </b-col>
 
+            <!-- Shortcut -->
+            <b-col md="6">
+              <b-form-group label="Shortcut">
+                <b-form-input
+                  placeholder="Enter Shortcut (e.g. STM)"
+                  label="Shortcut"
+                  v-model="warehouse.shortcut"
+                ></b-form-input>
+              </b-form-group>
+            </b-col>
+
             <!-- Phone -->
             <b-col md="6">
                 <b-form-group :label="$t('Phone')">
@@ -183,7 +194,8 @@ export default {
         email: "",
         zip: "",
         country: "",
-        city: ""
+        city: "",
+        shortcut: ""
       }
     };
   },
@@ -194,6 +206,12 @@ export default {
         {
           label: this.$t("Name"),
           field: "name",
+          tdClass: "text-left",
+          thClass: "text-left"
+        },
+        {
+          label: "Shortcut",
+          field: "shortcut",
           tdClass: "text-left",
           thClass: "text-left"
         },
@@ -383,7 +401,8 @@ export default {
           email: this.warehouse.email,
           zip: this.warehouse.zip,
           country: this.warehouse.country,
-          city: this.warehouse.city
+          city: this.warehouse.city,
+          shortcut: this.warehouse.shortcut
         })
         .then(response => {
           this.SubmitProcessing = false;
@@ -410,7 +429,8 @@ export default {
           email: this.warehouse.email,
           zip: this.warehouse.zip,
           country: this.warehouse.country,
-          city: this.warehouse.city
+          city: this.warehouse.city,
+          shortcut: this.warehouse.shortcut
         })
         .then(response => {
           this.SubmitProcessing = false;
@@ -437,7 +457,8 @@ export default {
         email: "",
         zip: "",
         country: "",
-        city: ""
+        city: "",
+        shortcut: ""
       };
     },
 

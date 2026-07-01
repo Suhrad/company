@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sale - {{ $sale['Ref'] }}</title>
     <style>
-        @page { size: A4; margin: 20px; }
+        @page { size: A4; margin: 20px 20px 40px 20px; }
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 13px; color: #333; line-height: 1.4; }
         .container { width: 100%; }
         
@@ -21,23 +21,44 @@
         .client-name { font-size: 16px; font-weight: bold; text-transform: uppercase; }
         
         /* Table styles */
-        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; page-break-inside: auto; }
+        .data-table thead { display: table-header-group; }
+        .data-table tr { page-break-inside: avoid; }
         .data-table th { background-color: #f2f2f2; border: 1px solid #000; padding: 8px; font-weight: bold; text-align: center; }
         .data-table td { border: 1px solid #000; padding: 8px; vertical-align: middle; }
+        .product-name { word-break: break-all; }
         
         .text-right { text-align: right; }
         .text-center { text-align: center; }
         .font-bold { font-weight: bold; }
         
         /* Footer section */
-        .footer-table { width: 40%; margin-left: 60%; margin-top: 20px; border-collapse: collapse; }
+        .footer-table { width: 40%; margin-left: 60%; margin-top: 20px; border-collapse: collapse; page-break-inside: avoid; }
         .footer-table td { border: 1px solid #000; padding: 8px; font-weight: bold; }
         .bg-grey { background-color: #f2f2f2; }
 
-        .note-section { margin-top: 20px; border: 1px solid #000; padding: 10px; min-height: 50px; }
+        .note-section { margin-top: 20px; border: 1px solid #000; padding: 10px; min-height: 50px; page-break-inside: avoid; }
+        
+        /* Page number footer styles */
+        .page-footer {
+            position: fixed;
+            bottom: -25px;
+            left: 0;
+            right: 0;
+            height: 20px;
+            text-align: center;
+            font-size: 10px;
+            color: #777;
+        }
+        .page-footer .page-number:after {
+            content: "Page " counter(page);
+        }
     </style>
 </head>
 <body>
+    <div class="page-footer">
+        <span class="page-number"></span>
+    </div>
     <div class="container">
         <!-- COMPANY HEADER -->
         <div class="header">
@@ -59,12 +80,7 @@
                     <div><strong>Date :</strong> {{ \Carbon\Carbon::parse($sale['date'])->format('d-m-Y') }}</div>
                     <div><strong>Warehouse :</strong> 
                         @php
-                            $w = $sale['warehouse'];
-                            if(strpos(strtolower($w), 'shanti') !== false) echo "STM";
-                            elseif(strpos(strtolower($w), 'nirmal') !== false) echo "NP";
-                            elseif(strpos(strtolower($w), 'saral') !== false) echo "SL";
-                            elseif(strpos(strtolower($w), 'sarveshwar') !== false) echo "SP";
-                            else echo $w;
+                            echo $sale['warehouse'];
                         @endphp
                     </div>
                     <div><strong>Status :</strong> {{ $sale['statut'] }}</div>
@@ -86,7 +102,7 @@
                 @foreach ($details as $index => $detail)
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
-                    <td>
+                    <td class="product-name">
                         <div class="font-bold">{{ $detail['name'] }}</div>
                         <div style="font-size: 11px; color: #555;">Code: {{ $detail['code'] }}</div>
                         @if($detail['is_imei'] && $detail['imei_number'] !== null)

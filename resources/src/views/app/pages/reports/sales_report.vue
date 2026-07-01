@@ -406,12 +406,8 @@ components: { DateRangePicker },
       ];
 
       let formatted_sales = self.sales.map((sale, index) => {
-        // Warehouse Shortcut Mapping
-        let warehouseShortcut = sale.warehouse_name || "";
-        if (warehouseShortcut.includes("STM")) warehouseShortcut = "STM";
-        else if (warehouseShortcut.includes("Nirmal") || warehouseShortcut.includes("NP")) warehouseShortcut = "NP";
-        else if (warehouseShortcut.includes("SL")) warehouseShortcut = "SL";
-        else if (warehouseShortcut.includes("SP")) warehouseShortcut = "SP";
+        // Warehouse Shortcut Mapping (uses dynamic shortcut from API)
+        let warehouseShortcut = sale.warehouse_shortcut || sale.warehouse_name || "";
 
         let productNames = "";
         let itemQtys = "";

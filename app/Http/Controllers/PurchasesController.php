@@ -128,6 +128,7 @@ class PurchasesController extends BaseController
             $item['date'] = $Purchase['date'] . ' ' . $Purchase['time'];
             $item['Ref'] = $Purchase->Ref;
             $item['warehouse_name'] = $Purchase['warehouse']->name;
+            $item['warehouse_shortcut'] = $Purchase['warehouse']->shortcut ?: $Purchase['warehouse']->name;
             $item['discount'] = $Purchase->discount;
             $item['shipping'] = $Purchase->shipping;
             $item['statut'] = $Purchase->statut;
@@ -876,7 +877,7 @@ class PurchasesController extends BaseController
         $purchase['Ref'] = $Purchase_data->Ref;
         $purchase['date'] = $Purchase_data->date . ' ' . $Purchase_data->time;
         $purchase['notes'] = $Purchase_data->notes;
-        $purchase['warehouse'] = $Purchase_data['warehouse']->name;
+        $purchase['warehouse'] = $Purchase_data['warehouse']->shortcut ?: $Purchase_data['warehouse']->name;
         $purchase['GrandTotal'] = number_format($Purchase_data->GrandTotal, 2, '.', '');
         $purchase['paid_amount'] = number_format($Purchase_data->paid_amount, 2, '.', '');
         $purchase['due'] = number_format($Purchase_data->GrandTotal - $Purchase_data->paid_amount, 2, '.', '');

@@ -37,3 +37,4 @@ yarn-error.log
 /vendor 3/
 /routes/api.php.patch
 /start.command
+/tmp-chrome-profile/

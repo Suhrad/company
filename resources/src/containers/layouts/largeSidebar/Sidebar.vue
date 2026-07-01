@@ -78,23 +78,6 @@
             <div class="triangle"></div>
           </li>
 
-          <!-- 5. Job Work -->
-          <li
-            v-show="currentUserPermissions && (currentUserPermissions.includes('job_work_view')
-                      || currentUserPermissions.includes('job_work_add'))"
-            @mouseenter="toggleSubMenu"
-            class="nav-item"
-            :class="{ active: selectedParentMenu == 'job_work' }"
-            data-item="job_work"
-            :data-submenu="true"
-          >
-            <a class="nav-item-hold" href="#">
-              <i class="nav-icon i-Factory"></i>
-              <span class="nav-text">Job Work</span>
-            </a>
-            <div class="triangle"></div>
-          </li>
-
           <!-- 6. Transfers -->
           <li
             v-show="currentUserPermissions && (currentUserPermissions.includes('transfer_view')
@@ -158,6 +141,23 @@
             </a>
             <div class="triangle"></div>
           </li>    
+
+          <!-- 5. Job Work -->
+          <li
+            v-show="currentUserPermissions && (currentUserPermissions.includes('job_work_view')
+                      || currentUserPermissions.includes('job_work_add'))"
+            @mouseenter="toggleSubMenu"
+            class="nav-item"
+            :class="{ active: selectedParentMenu == 'job_work' }"
+            data-item="job_work"
+            :data-submenu="true"
+          >
+            <a class="nav-item-hold" href="#">
+              <i class="nav-icon i-Factory"></i>
+              <span class="nav-text">Job Work</span>
+            </a>
+            <div class="triangle"></div>
+          </li>
 
           <!-- 8. Products -->
           <li

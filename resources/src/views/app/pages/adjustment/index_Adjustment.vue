@@ -315,7 +315,7 @@ export default {
         });
     },
 
-    //-------------------------------------- Adjustement PDF ------------------------------\\
+    //-------------------------------------- Adjustement PDF (Production List) ------------------------------\\
     Adjustment_PDF() {
       var self = this;
       let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
@@ -324,80 +324,157 @@ export default {
       pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
       pdf.setFont("VazirmatnBold"); 
 
-      let columns = [
-        { title: "Date", dataKey: "date" },
-        { title: "Warehouse", dataKey: "warehouse_name" },
-        { title: "Product", dataKey: "product_names" },
-        { title: "Items", dataKey: "item_quantities" },
-      ];
+      const parseItems = (itemsStr) => {
+        if (!itemsStr || itemsStr === '---') return [];
+        const items = [];
+        const parts = itemsStr.split(', ');
+        parts.forEach(p => {
+          const lastOpenParen = p.lastIndexOf(' (');
+          if (lastOpenParen !== -1) {
+            const name = p.substring(0, lastOpenParen).trim();
+            const qtyStr = p.substring(lastOpenParen + 2, p.length - 1);
+            const qty = parseFloat(qtyStr) || 0;
+            items.push({ name, qty });
+          } else {
+            items.push({ name: p.trim(), qty: 0 });
+          }
+        });
+        return items;
+      };
 
-      let formatted_adjustments = self.adjustments.map((adj) => {
-        let productNamesList = [];
-        let itemQtysList = [];
+      const formatQty = (value) => {
+        if (value === undefined || value === null || isNaN(value)) return "0.000";
+        return Number(value).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+      };
 
-        // Parse sub_items (subtracted items/consumed materials)
-        if (adj.sub_items && adj.sub_items !== '---') {
-          const parts = adj.sub_items.split(', ');
-          parts.forEach(p => {
-            const name = p.split(' (')[0];
-            const m = p.match(/\(([^)]+)\)/);
-            const qty = m ? m[1] : '';
-            productNamesList.push(name);
-            itemQtysList.push('-' + qty);
-          });
+      let body_rows = [];
+      let grand_total_consumption = 0;
+      let grand_total_production = 0;
+      let summary_map = {};
+
+      self.adjustments.forEach((adj, idx) => {
+        let consumptions = parseItems(adj.sub_items);
+        let productions = parseItems(adj.add_items);
+        let max_rows = Math.max(consumptions.length, productions.length);
+
+        for (let i = 0; i < max_rows; i++) {
+          let vou_no = (i === 0) ? (idx + 1) : "";
+          let date = (i === 0) ? (adj.date ? adj.date.split(' ')[0] : "") : "";
+          
+          let con_item = "";
+          let con_qty = "";
+          if (i < consumptions.length) {
+            con_item = consumptions[i].name;
+            con_qty = formatQty(consumptions[i].qty);
+            
+            // Add to summary
+            if (!summary_map[con_item]) {
+              summary_map[con_item] = { name: con_item, input_qty: 0, output_qty: 0 };
+            }
+            summary_map[con_item].input_qty += consumptions[i].qty;
+          }
+
+          let prod_item = "";
+          let prod_qty = "";
+          if (i < productions.length) {
+            prod_item = productions[i].name;
+            prod_qty = formatQty(productions[i].qty);
+
+            // Add to summary
+            if (!summary_map[prod_item]) {
+              summary_map[prod_item] = { name: prod_item, input_qty: 0, output_qty: 0 };
+            }
+            summary_map[prod_item].output_qty += productions[i].qty;
+          }
+
+          body_rows.push([vou_no, date, con_item, con_qty, prod_item, prod_qty]);
         }
 
-        // Parse add_items (added items/produced products)
-        if (adj.add_items && adj.add_items !== '---') {
-          const parts = adj.add_items.split(', ');
-          parts.forEach(p => {
-            const name = p.split(' (')[0];
-            const m = p.match(/\(([^)]+)\)/);
-            const qty = m ? m[1] : '';
-            productNamesList.push(name);
-            itemQtysList.push('+' + qty);
-          });
-        }
+        // Sub Total row
+        let sub_con_qty = adj.sub_qty || 0;
+        let sub_prod_qty = adj.add_qty || 0;
+        body_rows.push([
+          "",
+          "",
+          "Sub Total....",
+          formatQty(sub_con_qty),
+          "",
+          formatQty(sub_prod_qty)
+        ]);
 
-        return {
-          date: adj.date,
-          warehouse_name: adj.warehouse_name,
-          product_names: productNamesList.join(', '),
-          item_quantities: itemQtysList.join(', '),
-        };
+        grand_total_consumption += sub_con_qty;
+        grand_total_production += sub_prod_qty;
       });
 
+      // Grand Total row
+      body_rows.push([
+        "",
+        "",
+        "Grand Total....",
+        formatQty(grand_total_consumption),
+        "",
+        formatQty(grand_total_production)
+      ]);
+
+      let head = [
+        [
+          { content: "Vou No.", rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: "Date", rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: "Consumption", colSpan: 2, styles: { halign: 'center' } },
+          { content: "Production", colSpan: 2, styles: { halign: 'center' } }
+        ],
+        [
+          { content: "Item Name", styles: { halign: 'center' } },
+          { content: "Qty", styles: { halign: 'center' } },
+          { content: "Item Name", styles: { halign: 'center' } },
+          { content: "Qty", styles: { halign: 'center' } }
+        ]
+      ];
+
       pdf.autoTable({
-        columns: columns,
-        body: formatted_adjustments,
+        head: head,
+        body: body_rows,
         startY: 80,
-        theme: "grid", 
+        margin: { top: 80, bottom: 40, left: 40, right: 40 },
+        theme: "grid",
         styles: {
-          font: "VazirmatnBold", 
+          font: "VazirmatnBold",
           fontSize: 9,
-          halign: "center",
-          cellPadding: 5,
+          cellPadding: 4,
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5,
         },
         columnStyles: {
-           date: { cellWidth: 80, halign: 'center' },
-           warehouse_name: { cellWidth: 80, halign: 'center' },
-           product_names: { halign: 'left', cellWidth: 'auto' },
-           item_quantities: { halign: 'center', cellWidth: 100 },
+          0: { cellWidth: 40, halign: 'center' },
+          1: { cellWidth: 70, halign: 'center' },
+          2: { halign: 'left' },
+          3: { cellWidth: 80, halign: 'right' },
+          4: { halign: 'left' },
+          5: { cellWidth: 80, halign: 'right' },
         },
         headStyles: {
-          fillColor: [240, 240, 240], 
-          textColor: [0, 0, 0], 
-          fontStyle: "bold", 
+          fillColor: [240, 240, 240],
+          textColor: [0, 0, 0],
+          fontStyle: "bold",
           lineWidth: 0.5,
           lineColor: [0, 0, 0],
-          fontSize: 10,
+        },
+        didParseCell: (data) => {
+          if (data.row.section === 'body') {
+            const rowData = data.row.raw;
+            const isSubTotal = rowData[2] === "Sub Total....";
+            const isGrandTotal = rowData[2] === "Grand Total....";
+            if (isSubTotal || isGrandTotal) {
+              data.cell.styles.fontStyle = 'bold';
+            }
+          }
         },
         didDrawPage: (data) => {
            pdf.setFont("VazirmatnBold");
            pdf.setFontSize(16);
            pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
            pdf.setFontSize(14);
-           pdf.text("Adjustment List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
+           pdf.text("Production List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
            
            // Filter Info
            pdf.setFontSize(10);
@@ -416,7 +493,74 @@ export default {
         },
       });
 
-      pdf.save("Adjustment_List.pdf");
+      // Production Summary Table
+      let summaryStartY = pdf.lastAutoTable.finalY + 35;
+      let summary_list = Object.values(summary_map);
+      summary_list.sort((a, b) => a.name.localeCompare(b.name));
+
+      let summary_rows = [];
+      summary_list.forEach((item, s_idx) => {
+        let sr_no = s_idx + 1;
+        let item_name = item.name;
+        let input_qty = item.input_qty > 0 ? formatQty(item.input_qty) : "";
+        let output_qty = item.output_qty > 0 ? formatQty(item.output_qty) : "";
+        summary_rows.push([sr_no, item_name, input_qty, output_qty]);
+      });
+
+      summary_rows.push([
+        { content: "Grand Total...", colSpan: 2, styles: { fontStyle: 'bold' } },
+        formatQty(grand_total_consumption),
+        formatQty(grand_total_production)
+      ]);
+
+      let summary_head = [
+        [
+          { content: "Production Summary", colSpan: 4, styles: { halign: 'center', fillColor: [240, 240, 240], fontStyle: 'bold', fontSize: 11 } }
+        ],
+        [
+          { content: "Sr No.", styles: { halign: 'center' } },
+          { content: "Item Name", styles: { halign: 'center' } },
+          { content: "Input Qty", styles: { halign: 'center' } },
+          { content: "Output Qty", styles: { halign: 'center' } }
+        ]
+      ];
+
+      pdf.autoTable({
+        head: summary_head,
+        body: summary_rows,
+        startY: summaryStartY,
+        margin: { top: 80, bottom: 40, left: 40, right: 40 },
+        theme: "grid",
+        styles: {
+          font: "VazirmatnBold",
+          fontSize: 9,
+          cellPadding: 4,
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5,
+        },
+        columnStyles: {
+          0: { cellWidth: 50, halign: 'center' },
+          1: { halign: 'left' },
+          2: { cellWidth: 100, halign: 'right' },
+          3: { cellWidth: 100, halign: 'right' },
+        },
+        headStyles: {
+          fillColor: [240, 240, 240],
+          textColor: [0, 0, 0],
+          fontStyle: "bold",
+          lineWidth: 0.5,
+          lineColor: [0, 0, 0],
+        },
+        didParseCell: (data) => {
+          if (data.row.section === 'body') {
+            if (data.row.index === summary_rows.length - 1) {
+              data.cell.styles.fontStyle = 'bold';
+            }
+          }
+        }
+      });
+
+      pdf.save("Production_List.pdf");
 
     },
 

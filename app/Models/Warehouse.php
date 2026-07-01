@@ -10,7 +10,7 @@ class Warehouse extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'business_company_id', 'name', 'mobile', 'country', 'city', 'email', 'zip', 'is_archive_only',
+        'business_company_id', 'name', 'mobile', 'country', 'city', 'email', 'zip', 'is_archive_only', 'shortcut',
     ];
 
     protected $casts = [

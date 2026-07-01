@@ -1,66 +1,106 @@
 <?php
-use App\Models\Product;
-use Illuminate\Support\Str;
+require 'vendor/autoload.php';
+$app = require_once __DIR__.'/../bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel->bootstrap();
 
-$jsonPath = '/Users/suhrad/Downloads/Sales_Tax_Invoice_01-04-2025_To_31-01-2026.Json';
-$data = json_decode(file_get_contents($jsonPath), true);
+use Illuminate\Support\Facades\DB;
 
-$productsToImport = [];
-foreach ($data['saleinv'] as $inv) {
-    foreach ($inv['itemdetails'] as $item) {
-        $name = trim($item['itemname']);
-        if (!isset($productsToImport[$name])) {
-            $productsToImport[$name] = [
-                'name' => $name,
-                'hsn_sac_code' => $item['hsncode'],
-                'gst_unit' => $item['gstunit'],
-                'default_gst_rate' => $item['gstper'],
-                'goods_or_service_flag' => $item['goodserflag'],
-                'cost' => $item['rate'] ?: 0,
-                'price' => $item['rate'] ?: 0,
-            ];
-        }
-    }
-}
+echo "Starting product database reset and import...\n";
 
-echo "Found " . count($productsToImport) . " unique products in JSON.\n";
+// 1. Delete transactional records to avoid broken relations
+echo "Clearing transactions and details...\n";
+DB::table('sale_details')->delete();
+DB::table('sales')->delete();
 
-foreach ($productsToImport as $p) {
-    $exists = Product::where('name', $p['name'])->first();
-    if ($exists) {
-        echo "Skipping existing product: {$p['name']}\n";
-        continue;
-    }
+DB::table('purchase_details')->delete();
+DB::table('purchases')->delete();
 
-    echo "Importing: {$p['name']}\n";
-    
-    $code = 'SARAL-' . strtoupper(substr(md5($p['name']), 0, 10));
-    
-    Product::create([
-        'name' => $p['name'],
-        'code' => $code,
+DB::table('adjustment_details')->delete();
+DB::table('adjustments')->delete();
+
+DB::table('transfer_details')->delete();
+DB::table('transfers')->delete();
+
+DB::table('quotation_details')->delete();
+DB::table('quotations')->delete();
+
+DB::table('count_stock')->delete();
+
+// 2. Delete product-related master tables
+echo "Clearing products and variants...\n";
+DB::table('product_variants')->delete();
+DB::table('product_warehouse')->delete();
+DB::table('products')->delete();
+
+// 3. Define new products
+$new_products = [
+    "COCA BROWN TIGER PP ROPES",
+    "A - ONE MONOFILAMENT ROPES",
+    "RP NET",
+    "SEMI NETS",
+    "VIRGIN NETS",
+    "ATMIYA PP ROPES",
+    "A-ONE PP ROPES",
+    "POWER VIRGIN PP ROPE",
+    "TIRANGA CHATAI - RP NIWAR",
+    "SHANTI MATTY - RP NIWAR",
+    "VIP MASTER - RP NIWAR",
+    "TIRANGA 8-LINE (BLACK) - RP NIWAR",
+    "1 INCH NIWAR",
+    "3/4 INCH NIWAR",
+    "1/2 INCH NIWAR",
+    "SEMI NIWAR",
+    "SARVESHWAR YELLOW II PP ROPE",
+    "BALLER TWINE",
+    "GOPDORI",
+    "ZAKTA DORI",
+    "TWINES",
+    "YARN"
+];
+
+$warehouses = App\Models\Warehouse::whereNull('deleted_at')->get();
+$code = 1001;
+
+echo "Inserting new finished goods products...\n";
+foreach ($new_products as $prod_name) {
+    // Create product
+    $p = App\Models\Product::create([
+        'code' => (string)$code++,
         'Type_barcode' => 'CODE128',
-        'type' => 'is_single',
-        'cost' => $p['cost'],
-        'price' => $p['price'],
-        'category_id' => 2,
-        'unit_id' => ($p['gst_unit'] == 'KGS' ? 1 : null),
-        'unit_sale_id' => ($p['gst_unit'] == 'KGS' ? 1 : null),
-        'unit_purchase_id' => ($p['gst_unit'] == 'KGS' ? 1 : null),
+        'name' => $prod_name,
+        'cost' => 0.00,
+        'price' => 0.00,
+        'unit_id' => 1,
+        'unit_sale_id' => 1,
+        'unit_purchase_id' => 1,
+        'stock_alert' => 0,
+        'category_id' => 3, // Finished Goods
+        'is_variant' => 0,
+        'is_imei' => 0,
         'tax_method' => 1,
         'is_active' => 1,
-        'is_variant' => 0,
-        'stock_alert' => 0,
-        'business_company_id' => 1,
-        'hsn_sac_code' => $p['hsn_sac_code'],
-        'gst_unit' => $p['gst_unit'],
-        'goods_or_service_flag' => $p['goods_or_service_flag'],
-        'default_gst_rate' => $p['default_gst_rate'],
-        'is_saral_imported' => 1,
-        'source_system' => 'saral',
-        'source_identifier' => $p['name'],
-        'matching_signature' => "{$p['name']}|{$p['hsn_sac_code']}|{$p['gst_unit']}",
+        'type' => 'is_single',
+        'TaxNet' => 0,
+        'discount' => 0,
+        'discount_method' => 1,
+        'is_featured' => 0
     ]);
+
+    echo "  - Added: {$prod_name} (Code: {$p->code}, ID: {$p->id})\n";
+
+    // Setup product_warehouse inventory for all warehouses
+    foreach ($warehouses as $w) {
+        DB::table('product_warehouse')->insert([
+            'product_id' => $p->id,
+            'warehouse_id' => $w->id,
+            'product_variant_id' => null,
+            'qte' => 0,
+            'manage_stock' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
 }
 
-echo "Import complete.\n";
+echo "\nDatabase setup completed successfully!\n";

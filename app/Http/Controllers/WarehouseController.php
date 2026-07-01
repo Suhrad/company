@@ -78,6 +78,7 @@ class WarehouseController extends Controller
             $Warehouse->city    = $request['city'];
             $Warehouse->zip     = $request['zip'];
             $Warehouse->email   = $request['email'];
+            $Warehouse->shortcut = $request['shortcut'];
             $Warehouse->save();
 
             $products = Product::where('deleted_at', '=', null)->get(['id','type']);
@@ -143,6 +144,7 @@ class WarehouseController extends Controller
             'city' => $request['city'],
             'zip' => $request['zip'],
             'email' => $request['email'],
+            'shortcut' => $request['shortcut'],
         ]);
         return response()->json(['success' => true]);
     }

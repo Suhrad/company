@@ -1169,13 +1169,8 @@ export default {
       }];
 
       let formatted_sales = self.sales.map((sale, index) => {
-        // Warehouse Shortcut Mapping
-        let warehouseShortcut = sale.warehouse_name || "";
-        if (warehouseShortcut.toLowerCase().includes("shanti") || warehouseShortcut.includes("STM")) warehouseShortcut = "STM";
-        else if (warehouseShortcut.toLowerCase().includes("nirmal") || warehouseShortcut.includes("NP")) warehouseShortcut = "NP";
-        else if (warehouseShortcut.toLowerCase().includes("shanti textile")) warehouseShortcut = "STM";
-        else if (warehouseShortcut.includes("SL")) warehouseShortcut = "SL";
-        else if (warehouseShortcut.includes("SP")) warehouseShortcut = "SP";
+        // Warehouse Shortcut Mapping (uses dynamic shortcut from API)
+        let warehouseShortcut = sale.warehouse_shortcut || sale.warehouse_name || "";
 
         // Extract product names and quantities separately
         let productNames = "";
