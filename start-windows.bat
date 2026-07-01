@@ -5,7 +5,7 @@ echo ===================================================
 
 :: Step 1: Install PHP Dependencies (using the local composer.phar)
 echo [1/5] Installing PHP dependencies via Composer...
-php composer.phar install
+php composer.phar install --ignore-platform-reqs
 if %ERRORLEVEL% NEQ 0 (
     echo Error: Composer install failed. Make sure PHP is installed and in your PATH.
     pause
