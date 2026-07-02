@@ -16,6 +16,7 @@ if %ERRORLEVEL% NEQ 0 (
 echo [2/3] Setting up environment and database...
 php artisan key:generate
 php artisan migrate --force
+php artisan passport:keys
 if %ERRORLEVEL% NEQ 0 (
     echo Error: Database setup failed.
     pause
