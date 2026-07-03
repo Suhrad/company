@@ -297,10 +297,10 @@ class ClientController extends BaseController
                 $payload['password'] = Hash::make($request->input('password'));
             }
 
-            EcommerceClient::updateOrCreate(
-                ['client_id' => $id], // lookup by client_id
-                $payload
-            );
+            $ecommerceClient = EcommerceClient::where('client_id', $id)->first();
+            if ($ecommerceClient) {
+                $ecommerceClient->update($payload);
+            }
         });
 
         return response()->json(['success' => true]);
