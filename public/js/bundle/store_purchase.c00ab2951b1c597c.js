@@ -282,17 +282,17 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       var _this3 = this;
       var note = "";
 
-      // Transport and LR
-      if (this.purchase.transporter_name) note += this.purchase.transporter_name + " ";
-      note += "LR: " + (this.purchase.lr_number ? this.purchase.lr_number : "") + " ";
-
-      // Warehouse specific prefix
+      // Warehouse specific prefix first
       var warehouse = this.warehouses.find(function (w) {
         return w.id === _this3.purchase.warehouse_id;
       });
       if (warehouse && warehouse.shortcut) {
         note += warehouse.shortcut + ": ";
       }
+
+      // Transport and LR
+      if (this.purchase.transporter_name) note += this.purchase.transporter_name + " ";
+      note += "LR: " + (this.purchase.lr_number ? this.purchase.lr_number : "") + " ";
       return note.trim();
     },
     onAdvancedChange: function onAdvancedChange() {

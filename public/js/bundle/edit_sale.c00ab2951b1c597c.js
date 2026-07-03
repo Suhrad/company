@@ -934,15 +934,16 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     },
     updateNote: function updateNote() {
       var _this1 = this;
-      var transporter = this.sale.transporter_name ? this.sale.transporter_name + " " : "";
-      var lr_val = this.sale.lr_number ? this.sale.lr_number : "";
-      var note = transporter + "LR: " + lr_val + "\n";
+      var note = "";
       var warehouse = this.warehouses.find(function (w) {
         return w.id === _this1.sale.warehouse_id;
       });
       if (warehouse && warehouse.shortcut) {
-        note += warehouse.shortcut + ":";
+        note += warehouse.shortcut + ": ";
       }
+      var transporter = this.sale.transporter_name ? this.sale.transporter_name + " " : "";
+      var lr_val = this.sale.lr_number ? this.sale.lr_number : "";
+      note += transporter + "LR: " + lr_val;
       this.sale.notes = note;
     },
     //------------------------------------------ Remove Sale ------------------------------\\

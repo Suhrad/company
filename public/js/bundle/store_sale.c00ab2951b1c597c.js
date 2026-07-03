@@ -1538,18 +1538,18 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     generateAutoNote: function generateAutoNote() {
       var _this20 = this;
       var note = "";
-      if (this.sale.transporter_name) note += this.sale.transporter_name + " ";
 
-      // Always show LR: even if number is empty, or show the number if exists
-      note += "LR: " + (this.sale.lr_number ? this.sale.lr_number : "") + " ";
-
-      // Warehouse specific prefix
+      // Warehouse specific prefix first
       var warehouse = this.warehouses.find(function (w) {
         return w.id === _this20.sale.warehouse_id;
       });
       if (warehouse && warehouse.shortcut) {
         note += warehouse.shortcut + ": ";
       }
+      if (this.sale.transporter_name) note += this.sale.transporter_name + " ";
+
+      // Always show LR: even if number is empty, or show the number if exists
+      note += "LR: " + (this.sale.lr_number ? this.sale.lr_number : "") + " ";
       return note.trim();
     },
     onGridProductChange: function onGridProductChange(rowIndex, itemIndex) {

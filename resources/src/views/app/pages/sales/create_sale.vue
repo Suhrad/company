@@ -1502,16 +1502,17 @@ export default {
 
     generateAutoNote() {
       let note = "";
-      if (this.sale.transporter_name) note += this.sale.transporter_name + " ";
       
-      // Always show LR: even if number is empty, or show the number if exists
-      note += "LR: " + (this.sale.lr_number ? this.sale.lr_number : "") + " ";
-      
-      // Warehouse specific prefix
+      // Warehouse specific prefix first
       const warehouse = this.warehouses.find(w => w.id === this.sale.warehouse_id);
       if (warehouse && warehouse.shortcut) {
         note += warehouse.shortcut + ": ";
       }
+      
+      if (this.sale.transporter_name) note += this.sale.transporter_name + " ";
+      
+      // Always show LR: even if number is empty, or show the number if exists
+      note += "LR: " + (this.sale.lr_number ? this.sale.lr_number : "") + " ";
       
       return note.trim();
     },

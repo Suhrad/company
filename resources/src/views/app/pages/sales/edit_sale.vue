@@ -1014,14 +1014,17 @@ export default {
     },
 
     updateNote() {
-      let transporter = this.sale.transporter_name ? this.sale.transporter_name + " " : "";
-      let lr_val = this.sale.lr_number ? this.sale.lr_number : "";
-      let note = transporter + "LR: " + lr_val + "\n";
-
+      let note = "";
+      
       const warehouse = this.warehouses.find(w => w.id === this.sale.warehouse_id);
       if (warehouse && warehouse.shortcut) {
-        note += warehouse.shortcut + ":";
+        note += warehouse.shortcut + ": ";
       }
+      
+      let transporter = this.sale.transporter_name ? this.sale.transporter_name + " " : "";
+      let lr_val = this.sale.lr_number ? this.sale.lr_number : "";
+      note += transporter + "LR: " + lr_val;
+      
       this.sale.notes = note;
     },
 

@@ -1066,14 +1066,6 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 //
 //
 //
-//
-//
-//
-//
-//
-//
-//
-//
 
 
 
@@ -7767,7 +7759,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "render": () => (/* binding */ render),
 /* harmony export */   "staticRenderFns": () => (/* binding */ staticRenderFns)
 /* harmony export */ });
-var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"main-content"},[_c('breadcumb',{attrs:{"page":_vm.$t('CustomerManagement'),"folder":_vm.$t('Customers')}}),_vm._v(" "),(_vm.isLoading)?_c('div',{staticClass:"loading_page spinner spinner-primary mr-3"}):_c('div',[_c('div',{staticClass:"mb-5"},[_c('span',{directives:[{name:"show",rawName:"v-show",value:(_vm.clients_without_ecommerce > 0),expression:"clients_without_ecommerce > 0"}],staticClass:"alert alert-danger"},[_vm._v("\n        "+_vm._s(_vm.$t('There_are'))+" "),_c('strong',[_vm._v(_vm._s(_vm.clients_without_ecommerce))]),_vm._v(" \n        "+_vm._s(_vm.$t('Customers_without_ecommerce_notice'))+"\n        "),_c('router-link',{attrs:{"to":"/app/People/Customers_without_ecommerce"}},[_vm._v("\n        "+_vm._s(_vm.$t('View_Details'))+"\n        ")])],1)]),_vm._v(" "),_c('vue-good-table',{attrs:{"mode":"remote","columns":_vm.columns,"totalRows":_vm.totalRows,"rows":_vm.clients,"search-options":{
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"main-content"},[_c('breadcumb',{attrs:{"page":_vm.$t('CustomerManagement'),"folder":_vm.$t('Customers')}}),_vm._v(" "),(_vm.isLoading)?_c('div',{staticClass:"loading_page spinner spinner-primary mr-3"}):_c('div',[_c('vue-good-table',{attrs:{"mode":"remote","columns":_vm.columns,"totalRows":_vm.totalRows,"rows":_vm.clients,"search-options":{
       enabled: true,
       placeholder: _vm.$t('Search_this_table'),  
     },"select-options":{ 

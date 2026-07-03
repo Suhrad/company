@@ -3,15 +3,7 @@
     <breadcumb :page="$t('CustomerManagement')" :folder="$t('Customers')"/>
     <div v-if="isLoading" class="loading_page spinner spinner-primary mr-3"></div>
     <div v-else>
-      <div class="mb-5">
-        <span class="alert alert-danger" v-show="clients_without_ecommerce > 0">
-          {{$t('There_are')}} <strong>{{ clients_without_ecommerce}}</strong> 
-          {{$t('Customers_without_ecommerce_notice')}}
-          <router-link  to="/app/People/Customers_without_ecommerce">
-          {{$t('View_Details')}}
-          </router-link>
-        </span>
-      </div>
+
       <vue-good-table
         mode="remote"
         :columns="columns"

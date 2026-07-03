@@ -265,15 +265,16 @@ export default {
     generateAutoNote() {
       let note = "";
       
-      // Transport and LR
-      if (this.purchase.transporter_name) note += this.purchase.transporter_name + " ";
-      note += "LR: " + (this.purchase.lr_number ? this.purchase.lr_number : "") + " ";
-      
-      // Warehouse specific prefix
+      // Warehouse specific prefix first
       const warehouse = this.warehouses.find(w => w.id === this.purchase.warehouse_id);
       if (warehouse && warehouse.shortcut) {
         note += warehouse.shortcut + ": ";
       }
+      
+      // Transport and LR
+      if (this.purchase.transporter_name) note += this.purchase.transporter_name + " ";
+      note += "LR: " + (this.purchase.lr_number ? this.purchase.lr_number : "") + " ";
+      
       return note.trim();
     },
 
