@@ -168,10 +168,10 @@ class PurchasesController extends BaseController
          //get warehouses assigned to user
          $user_auth = auth()->user();
          if($user_auth->is_all_warehouses){
-             $warehouses = Warehouse::where('deleted_at', '=', null)->get(['id', 'name']);
+             $warehouses = Warehouse::where('deleted_at', '=', null)->get(['id', 'name', 'shortcut']);
          }else{
              $warehouses_id = UserWarehouse::where('user_id', $user_auth->id)->pluck('warehouse_id')->toArray();
-             $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name']);
+             $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name', 'shortcut']);
          } 
 
         $payment_methods = PaymentMethod::whereNull('deleted_at')->get(['id', 'name']);
@@ -972,10 +972,10 @@ class PurchasesController extends BaseController
          //get warehouses assigned to user
          $user_auth = auth()->user();
          if($user_auth->is_all_warehouses){
-             $warehouses = Warehouse::where('deleted_at', '=', null)->get(['id', 'name']);
+             $warehouses = Warehouse::where('deleted_at', '=', null)->get(['id', 'name', 'shortcut']);
          }else{
              $warehouses_id = UserWarehouse::where('user_id', $user_auth->id)->pluck('warehouse_id')->toArray();
-             $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name']);
+             $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name', 'shortcut']);
          } 
 
         $helpers = new helpers();
@@ -1138,10 +1138,10 @@ class PurchasesController extends BaseController
             //get warehouses assigned to user
             $user_auth = auth()->user();
             if($user_auth->is_all_warehouses){
-                $warehouses = Warehouse::where('deleted_at', '=', null)->get(['id', 'name']);
+                $warehouses = Warehouse::where('deleted_at', '=', null)->get(['id', 'name', 'shortcut']);
             }else{
                 $warehouses_id = UserWarehouse::where('user_id', $user_auth->id)->pluck('warehouse_id')->toArray();
-                $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name']);
+                $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name', 'shortcut']);
             }
             
             $helpers = new helpers();
@@ -1555,10 +1555,10 @@ class PurchasesController extends BaseController
             //get warehouses assigned to user
             $user_auth = auth()->user();
             if($user_auth->is_all_warehouses){
-                $warehouses = Warehouse::where('deleted_at', '=', null)->get(['id', 'name']);
+                $warehouses = Warehouse::where('deleted_at', '=', null)->get(['id', 'name', 'shortcut']);
             }else{
                 $warehouses_id = UserWarehouse::where('user_id', $user_auth->id)->pluck('warehouse_id')->toArray();
-                $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name']);
+                $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name', 'shortcut']);
             } 
     
             $helpers = new helpers();
